@@ -146,7 +146,8 @@ jobs:
   # 製品ページのスクリーンショットを、この版の版下から作り直して差し替える。
   # 絵はアプリの画面を写しているので、画面を変えた版では絵も変わる。
   # 人が App Store Connect へドラッグする手順を無くすためにここでやる。
-  # 失敗しても提出は止めない（古い絵のまま審査に出るだけで、ビルドには影響しない）。
+  # submit はこれが終わるのを待つ。入れ替えの途中（古い絵を消して新しい絵を
+  # 取り込んでいる間）は版が審査に出せる状態ではなく、提出が 409 で落ちる。
   screenshots:
     needs: upload
     if: needs.upload.outputs.release == 'true'
@@ -181,7 +182,7 @@ jobs:
   # ビルドの処理待ちは 10 分から 1 時間かかる。macOS ランナーは課金の倍率が
   # 高いので、Xcode の要らないここは Linux で待つ。
   submit:
-    needs: upload
+    needs: [upload, screenshots]
     if: >-
       needs.upload.outputs.release == 'true'
       && vars.ASC_AUTO_SUBMIT != 'false'
