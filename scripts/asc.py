@@ -206,21 +206,32 @@ def find_or_create_version(app, version_string, release_type):
         return version["id"]
 
     log(f"バージョン {version_string} を作ります（releaseType={release_type}）。")
-    created = api(
-        "POST",
-        "/v1/appStoreVersions",
-        body={
-            "data": {
-                "type": "appStoreVersions",
-                "attributes": {
-                    "platform": PLATFORM,
-                    "versionString": version_string,
-                    "releaseType": release_type,
-                },
-                "relationships": {"app": {"data": {"type": "apps", "id": app}}},
-            }
-        },
-    )
+    try:
+        created = api(
+            "POST",
+            "/v1/appStoreVersions",
+            body={
+                "data": {
+                    "type": "appStoreVersions",
+                    "attributes": {
+                        "platform": PLATFORM,
+                        "versionString": version_string,
+                        "releaseType": release_type,
+                    },
+                    "relationships": {"app": {"data": {"type": "apps", "id": app}}},
+                }
+            },
+        )
+    except ApiError as error:
+        # screenshots と submit のジョブが同時に走るため、先に相手が作っていることが
+        # ある。その場合は作れないので、もう一度探す。
+        if error.status != 409:
+            raise
+        version = find_version(app, version_string)
+        if version is None:
+            raise
+        log(f"バージョン {version_string} は別の処理が先に作っていました。")
+        return version["id"]
     return created["data"]["id"]
 
 
