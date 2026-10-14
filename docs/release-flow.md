@@ -19,6 +19,10 @@ PR: develop → main ─ マージ ─▶ release.yml
                                   │    make mas で .pkg を作り、
                                   │    App Store Connect へ送る
                                   │
+                                  ├─ screenshots (macOS)
+                                  │    make screenshots で絵を作り、
+                                  │    製品ページの絵を差し替える
+                                  │
                                   └─ submit (Linux)
                                        ビルドの処理を待ち、
                                        バージョンを作り、
@@ -36,6 +40,7 @@ PR: develop → main ─ マージ ─▶ release.yml
 | 誰が | 何を |
 |---|---|
 | 自動（release.yml / upload） | ビルド、署名、.pkg 作成、アップロード |
+| 自動（release.yml / screenshots） | 製品ページのスクリーンショットを作り直して差し替え |
 | 自動（release.yml / submit） | 処理待ち、バージョン作成、リリースノート、**審査への提出** |
 | 自動（tag-release.yml） | 配信を検知してタグと GitHub Release を作成 |
 | 人 | バージョンを上げる、CHANGELOG を書く、リジェクトされたときの対応 |
