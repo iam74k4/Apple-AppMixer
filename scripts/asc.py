@@ -334,7 +334,9 @@ def submit_for_review(app, version_id):
         )
     except ApiError as error:
         # 同じバージョンが既に入っている場合は、そのまま提出へ進めばよい。
-        if error.status != 409:
+        # 409 はそれ以外（スクリーンショットの取り込み中、メタデータ不足など
+        # 「いまは出せない」状態）でも返るので、本文を見て区別する。
+        if error.status != 409 or "already" not in error.detail.lower():
             raise
         log("このバージョンは既に入れ物の中にありました。")
 
