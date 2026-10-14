@@ -32,6 +32,11 @@ docs: deep-dive comparison of virtual-device vs process-tap
 chore: set up develop branch and git conventions
 ```
 
+## テスト（必須）
+- 挙動を変える変更には **必ず自動テストを付ける**。テストは `Tests/AppMixerTests` に置き、`make test`（= `swift test`）で通す。CI（build.yml）でも同じものを走らせる。
+- HAL（CoreAudio）や NSWorkspace に触る処理は、判断の部分を純粋な関数・注入可能な構造に分けてテストする（例: `ProcessIdentity` は `process`/`parent` クロージャを差し替えられる、`AudioAppEnumerator.group` は `AudioProcessRecord` の配列を受ける、`ProcessTap.render` は手作りのバッファで呼べる）。
+- PR を出す前に `make test` と `make build` の両方を通すこと。
+
 ## ドキュメント
 - `docs/feasibility-study.md` — 基礎検討（技術フィージビリティ）
 - `docs/approach-comparison.md` — 実現方式の詳細比較（方式A vs 方式B）

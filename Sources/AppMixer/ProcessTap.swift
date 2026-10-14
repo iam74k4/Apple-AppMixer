@@ -20,14 +20,22 @@ import os
 /// `Synchronization` の `Atomic` は macOS 15 以降で、このアプリの配備対象
 /// （macOS 14.4）では使えない。
 final class TapState: @unchecked Sendable {
-    /// UI が書き、IOProc が目標として読む（0.0...1.0）。
-    var targetGain: Float = 1.0
+    /// UI が書き、IOProc が目標として読む左右のゲイン（0.0...1.0）。
+    /// 全体の音量とバランスを掛け合わせた値。ステレオでなければ左右は同じ。
+    var targetLeft: Float = 1.0
+    var targetRight: Float = 1.0
     /// IOProc が保持する現在のゲイン。目標へ向かって滑らかに動く。
-    var currentGain: Float = 1.0
-    /// 1 サンプルあたりのゲイン変化量。急変によるプチノイズを防ぐ。
+    var currentLeft: Float = 1.0
+    var currentRight: Float = 1.0
+    /// 1 フレーム（チャンネルごとに 1 サンプル）あたりのゲイン変化量。
+    /// 急変によるプチノイズを防ぐ。
     var rampStep: Float = 1.0 / 2048.0
     /// IOProc が書き、UI が読む（直近ピーク 0...1）。
     var level: Float = 0
+    /// タップの形式。activate が決め、以後は読むだけ。
+    /// バランスはステレオのときだけ意味を持つ。
+    var channelCount: Int = 2
+    var isInterleaved: Bool = true
 }
 
 // 1 アプリ（複数の音声プロセスを含む）に対する Process Tap。
@@ -79,9 +87,29 @@ final class ProcessTap {
     let state = TapState()
 
     /// 目標ゲイン（0.0...1.0）。実際の適用は数十 ms かけて滑らかに追従する。
-    var gain: Float {
-        get { state.targetGain }
-        set { state.targetGain = newValue }
+    var gain: Float = 1.0 {
+        didSet { pushTargets() }
+    }
+
+    /// 左右バランス（-1...1）。片側を絞るだけで、反対側は持ち上げない。
+    var balance: Float = 0 {
+        didSet { pushTargets() }
+    }
+
+    /// 音量とバランスから左右の目標ゲインを決めて IOProc へ渡す。
+    private func pushTargets() {
+        let gains = state.channelCount == 2
+            ? Balance.channelGains(gain: gain, balance: balance)
+            : (left: gain, right: gain)
+        state.targetLeft = gains.left
+        state.targetRight = gains.right
+    }
+
+    /// 現在のゲインを目標に揃える（フェードさせずにその値から始める）。
+    /// 新しく張るタップで、鳴り始めに音量が滑り込むのを防ぐ。
+    func snapToTarget() {
+        state.currentLeft = state.targetLeft
+        state.currentRight = state.targetRight
     }
 
     /// 直近のピーク（0...1）。メーター表示用。
@@ -123,14 +151,16 @@ final class ProcessTap {
             throw TapError.unsupportedFormat(format)
         }
 
-        // フェード時間から 1 スロットあたりの変化量を決める（およそ 80ms）。
-        // render はバッファ内の Float を 1 つずつ辿るため、インターリーブ形式では
-        // 1 フレームにチャンネル数ぶんのスロットがある。これを勘定に入れないと
-        // ステレオでフェードが半分の時間で終わってしまう。
+        // フェード時間から 1 フレームあたりの変化量を決める（およそ 80ms）。
+        // render はチャンネルごとに 1 サンプルずつゲインを進めるので、
+        // インターリーブでもそうでなくても 1 フレーム = 1 歩になる。
         let sampleRate = format.mSampleRate > 0 ? format.mSampleRate : 48_000
-        let isInterleaved = format.mFormatFlags & kAudioFormatFlagIsNonInterleaved == 0
-        let slotsPerFrame = isInterleaved ? max(1, Int(format.mChannelsPerFrame)) : 1
-        state.rampStep = Float(1.0 / (sampleRate * Self.rampSeconds * Double(slotsPerFrame)))
+        state.rampStep = Float(1.0 / (sampleRate * Self.rampSeconds))
+        state.channelCount = max(1, Int(format.mChannelsPerFrame))
+        state.isInterleaved = format.mFormatFlags & kAudioFormatFlagIsNonInterleaved == 0
+        // 形式が決まったので、バランスを左右のゲインへ反映し直す。
+        pushTargets()
+        snapToTarget()
 
         // 出力先。指定が無ければ既定出力を使う。
         let outputUID: String
@@ -252,7 +282,15 @@ final class ProcessTap {
 
     // MARK: - Realtime render (audio thread)
 
-    private static func render(
+    /// タップ入力にゲインを掛けて出力へ書き、ピークを計る。
+    ///
+    /// 左右で別のゲインを持つ。ステレオのインターリーブ形式では偶数スロットが
+    /// 左、奇数スロットが右。非インターリーブ形式ではバッファ 0 が左、1 が右。
+    /// それ以外（モノラル、3ch 以上）はバランスを持たず、左のゲインを全体に掛ける
+    /// （pushTargets が左右を同じ値にしている）。
+    ///
+    /// 確保もロックもしない。IO スレッドで呼ばれるため。
+    static func render(
         input: UnsafePointer<AudioBufferList>,
         output: UnsafeMutablePointer<AudioBufferList>,
         state: TapState
@@ -268,12 +306,16 @@ final class ProcessTap {
             }
         }
 
-        let startGain = state.currentGain
-        let target = state.targetGain
+        let startLeft = state.currentLeft
+        let startRight = state.currentRight
+        let targetLeft = state.targetLeft
+        let targetRight = state.targetRight
         let step = state.rampStep
-        var endGain = startGain
+        var endLeft = startLeft
+        var endRight = startRight
         var peak: Float = 0
         let pairCount = min(inBuffers.count, outBuffers.count)
+        let stereo = state.channelCount == 2
 
         for i in 0..<pairCount {
             let inBuffer = inBuffers[i]
@@ -290,37 +332,73 @@ final class ProcessTap {
             vDSP_maxmgv(inPtr, 1, &localPeak, vDSP_Length(count))
             peak = max(peak, localPeak)
 
-            if startGain == target {
-                if target == 1.0 {
-                    memcpy(outData, inData, Int(byteCount))
-                } else {
-                    var g = target
-                    vDSP_vsmul(inPtr, 1, &g, outPtr, 1, vDSP_Length(count))
+            if stereo && state.isInterleaved {
+                // L R L R … と並ぶ。1 つおきに辿って左右を別々に掛ける。
+                let frames = count / 2
+                endLeft = applyGain(inPtr, outPtr, stride: 2, count: frames,
+                                    from: startLeft, to: targetLeft, step: step)
+                endRight = applyGain(inPtr + 1, outPtr + 1, stride: 2, count: frames,
+                                     from: startRight, to: targetRight, step: step)
+            } else if stereo {
+                // チャンネルごとに別のバッファ。0 が左、1 が右。
+                // それ以上のバッファは形式と矛盾しているので無音のままにする
+                // （左右のフェードの進みを壊さない）。
+                if i == 0 {
+                    endLeft = applyGain(inPtr, outPtr, stride: 1, count: count,
+                                        from: startLeft, to: targetLeft, step: step)
+                } else if i == 1 {
+                    endRight = applyGain(inPtr, outPtr, stride: 1, count: count,
+                                         from: startRight, to: targetRight, step: step)
                 }
-                endGain = target
             } else {
-                // 目標へ向かって 1 サンプルずつ寄せる。急にゲインを変えると
-                // 波形が不連続になりプチッと鳴るため、必ず滑らかに変化させる。
-                var g = startGain
-                if target > startGain {
-                    for n in 0..<count {
-                        g = min(target, g + step)
-                        outPtr[n] = inPtr[n] * g
-                    }
-                } else {
-                    for n in 0..<count {
-                        g = max(target, g - step)
-                        outPtr[n] = inPtr[n] * g
-                    }
-                }
-                endGain = g
+                // バランスの無い形式。インターリーブなら 1 フレームにチャンネル数
+                // ぶんのスロットがあるので、歩幅を割ってフェード時間を保つ。
+                let slotStep = state.isInterleaved ? step / Float(max(1, state.channelCount)) : step
+                endLeft = applyGain(inPtr, outPtr, stride: 1, count: count,
+                                    from: startLeft, to: targetLeft, step: slotStep)
+                endRight = endLeft
             }
         }
 
-        state.currentGain = endGain
+        state.currentLeft = endLeft
+        state.currentRight = endRight
 
         // 減衰付きピークホールド（実効ゲインを反映して表示）
-        let displayPeak = min(1.0, peak * endGain)
+        let displayPeak = min(1.0, peak * max(endLeft, endRight))
         state.level = max(displayPeak, state.level * 0.82)
+    }
+
+    /// `count` 個のサンプルを `stride` おきに辿り、ゲインを掛けて書き出す。
+    /// 現在値が目標と違えば 1 サンプルずつ寄せる。戻り値は最後に掛けたゲイン。
+    @inline(__always)
+    private static func applyGain(
+        _ inPtr: UnsafePointer<Float>, _ outPtr: UnsafeMutablePointer<Float>,
+        stride: Int, count: Int, from start: Float, to target: Float, step: Float
+    ) -> Float {
+        guard count > 0 else { return start }
+        if start == target {
+            if target == 1.0 && stride == 1 {
+                memcpy(outPtr, inPtr, count * MemoryLayout<Float>.size)
+            } else {
+                var g = target
+                vDSP_vsmul(inPtr, stride, &g, outPtr, stride, vDSP_Length(count))
+            }
+            return target
+        }
+        // 目標へ向かって 1 サンプルずつ寄せる。急にゲインを変えると
+        // 波形が不連続になりプチッと鳴るため、必ず滑らかに変化させる。
+        var g = start
+        if target > start {
+            for n in 0..<count {
+                g = min(target, g + step)
+                outPtr[n * stride] = inPtr[n * stride] * g
+            }
+        } else {
+            for n in 0..<count {
+                g = max(target, g - step)
+                outPtr[n * stride] = inPtr[n * stride] * g
+            }
+        }
+        return g
     }
 }

@@ -4,6 +4,7 @@
 #
 #   開発
 #     make run                    ビルド → .app 生成 → 署名 → 起動
+#     make test                   自動テスト（swift test）
 #     make bundle                 .app を dist/ に生成するだけ
 #     make clean
 #
@@ -53,7 +54,7 @@ BUNDLE_ID := $(shell /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" bund
 # 提出時だけ使う、組み立て済みのエンタイトルメント。
 MAS_ENTITLEMENTS := $(DIST)/mas/entitlements.plist
 
-.PHONY: all build bundle icon sign run clean check-version run-sandboxed mas check-mas screenshots
+.PHONY: all build test bundle icon sign run clean check-version run-sandboxed mas check-mas screenshots
 
 # 署名やアーカイブは同じ .app を触るため、並列に走らせると壊れる。
 .NOTPARALLEL:
@@ -75,6 +76,11 @@ build:
 		echo "error: macOS 14.4 SDK 以降が必要です (Xcode 15.3+)。検出: $${sdk:-none}"; exit 1; \
 	fi
 	swift build -c $(CONFIG)
+
+# 自動テスト。HAL に触らない純粋な判断（一覧の組み立て、本体アプリの解決、
+# ゲインとバランス、保存形式）を Tests/AppMixerTests で試す。
+test:
+	swift test
 
 # PNG 一式（bundle/icon/AppIcon.iconset）から .icns を作る。iconutil は macOS 専用。
 icon:

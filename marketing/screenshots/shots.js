@@ -1,29 +1,29 @@
 // スクリーンショット 1 枚ごとの中身。画面の状態（アプリの UI）と文言を置く。
 //
 // 画面の状態は、アプリが実際にその状況で出す表示に合わせること。
-//   - 一覧の並びは「再生中 → 名前順」（AudioAppEnumerator.enumerate と同じ）
-//   - 音量が 100% 未満・ミュート・出力先の振り分けがある行は、ミュートボタンと
-//     出力先ボタンが常に見える（AppRowView.showsControls）
+//   - 一覧の並びは「再生中 → 名前順 → システム音は最後」
+//     （AudioAppEnumerator.group と同じ）
+//   - 音量が 100% 未満・ミュート・出力先の振り分け・バランスがある行は、
+//     ミュートボタン・出力先ボタン・バランスのつまみが常に見える
+//     （AppRowView.showsControls）
 //   - メーターは音量を掛けた後のレベル（ProcessTap の displayPeak）。
 //     30% の行は 100% の行より短く、ミュート中は伸びない
+//   - バランスはメーターの上の区切りのつまみ。中央なら灰色、動かすと青
 //   - ダッキング中も表示する音量は利用者が決めた値のまま。行に橙の印が付く
 //
 // { ja, en } の形の値は言語ごとに切り替わる。アプリ名とデバイス名は macOS が
 // 返す名前なので、その言語の Mac で実際に出る名前にする（英語の Mac では
 // 「ミュージック」ではなく「Music」）。AppMixer 自身の文言は app.js の UI。
 //
-// scene は背景に置くウインドウ。x・y はキャンバス（1440×900）上の左上の位置、
-// w はウインドウの幅（pt）。ポップオーバーより一段小さい倍率（SCENE_Z）で描き、
-// ポップオーバーの下から覗かせる。
+// 背景は無地に近い暗い面にして、ポップオーバーと文言だけで伝える。
 
 const APP = {
-  discord: { name: "Discord", icon: "discord" },
   chrome: { name: "Google Chrome", icon: "chrome" },
   facetime: { name: "FaceTime", icon: "facetime" },
   music: { name: { ja: "ミュージック", en: "Music" }, icon: "music" },
+  // どのアプリにも属さない音（通知音・効果音）をまとめた行。
+  system: { name: { ja: "システム音", en: "System Sounds" }, icon: "system" },
 };
-
-const SCENE_Z = 1.25;
 
 const DEVICE = {
   speaker: { ja: "MacBook Air のスピーカー", en: "MacBook Air Speakers" },
@@ -40,15 +40,11 @@ window.SHOTS = [
       device: DEVICE.speaker,
       master: 0.62,
       rows: [
-        { ...APP.discord, volume: 1.0, muted: true, level: 0 },
         { ...APP.chrome, volume: 0.3, level: 0.21 },
         { ...APP.music, volume: 0.8, level: 0.56 },
+        { ...APP.system, volume: 1.0, muted: true, level: 0 },
       ],
     },
-    scene: [
-      { type: "browser", x: 610, y: 320, w: 560 },
-      { type: "music", x: 1010, y: 735 },
-    ],
     copy: {
       ja: {
         eyebrow: "Mac のための音量ミキサー",
@@ -57,7 +53,7 @@ window.SHOTS = [
         points: [
           { icon: "chrome", text: "動画は控えめに", chip: "30%" },
           { icon: "music", text: "音楽はそのまま", chip: "80%" },
-          { icon: "discord", text: "通知音だけ消す", chip: "ミュート", gray: true },
+          { icon: "system", text: "通知音だけ消す", chip: "ミュート", gray: true },
         ],
       },
       en: {
@@ -67,7 +63,7 @@ window.SHOTS = [
         points: [
           { icon: "chrome", text: "Videos, a little quieter", chip: "30%" },
           { icon: "music", text: "Music, right where it was", chip: "80%" },
-          { icon: "discord", text: "Notification pings, gone", chip: "Muted", gray: true },
+          { icon: "system", text: "Notification pings, gone", chip: "Muted", gray: true },
         ],
       },
     },
@@ -87,10 +83,6 @@ window.SHOTS = [
       ],
       banner: "FaceTime",
     },
-    scene: [
-      { type: "call", x: 610, y: 430, w: 440 },
-      { type: "music", x: 1010, y: 755 },
-    ],
     copy: {
       ja: {
         eyebrow: "通話中の自動ダッキング",
@@ -177,10 +169,6 @@ window.SHOTS = [
         },
       ],
     },
-    scene: [
-      { type: "call", x: 610, y: 470, w: 440 },
-      { type: "music", x: 1010, y: 755 },
-    ],
     copy: {
       ja: {
         eyebrow: "アプリごとの出力先",
@@ -204,13 +192,53 @@ window.SHOTS = [
   },
 
   {
-    id: "05-features",
+    id: "05-balance",
+    layout: "side",
+    z: 1.8,
+    // ミュージックだけ右を 30% 絞る（つまみが左へ寄る）。
+    popover: {
+      device: DEVICE.airpods,
+      master: 0.55,
+      rows: [
+        { ...APP.chrome, volume: 0.6, level: 0.3 },
+        { ...APP.music, volume: 0.8, level: 0.5, balance: -0.3 },
+        { ...APP.system, volume: 0.5, level: 0 },
+      ],
+    },
+    copy: {
+      ja: {
+        eyebrow: "アプリごとの左右バランス",
+        headline: "左右のバランスも、\nアプリごとに。",
+        sub: "メーターの上の区切りのつまみをドラッグするだけ。片側を絞るだけなので音は歪みません。デバイスごとに記憶します。",
+        points: [
+          { symbol: "arrow.left.and.right", text: "ドラッグで片側だけ絞る" },
+          { symbol: "headphones", text: "聴こえ方の左右差に合わせる" },
+          { symbol: "arrow.counterclockwise", text: "ダブルクリックで中央に戻す" },
+        ],
+      },
+      en: {
+        eyebrow: "Per-app balance",
+        headline: "Left and right,\nper app too.",
+        sub: "Drag the divider on the level meter. It only lowers one side, so nothing distorts. Remembered per output device.",
+        points: [
+          { symbol: "arrow.left.and.right", text: "Drag to lower one side" },
+          { symbol: "headphones", text: "Match how you hear" },
+          { symbol: "arrow.counterclockwise", text: "Double-click to center" },
+        ],
+      },
+    },
+  },
+
+  {
+    id: "06-features",
     layout: "grid",
     copy: {
       ja: {
         headline: "Mac に足りなかった音量調整を、\nメニューバーに。",
         features: [
           { symbol: "slider.horizontal.3", text: "アプリ別の\n音量・ミュート" },
+          { symbol: "arrow.left.and.right", text: "アプリ別の\n左右バランス" },
+          { symbol: "bell.fill", text: "通知音・効果音も\nまとめて調整" },
           { symbol: "waveform", text: "リアルタイムの\nレベルメーター" },
           { symbol: "phone.fill", text: "通話中の\n自動ダッキング" },
           { symbol: "headphones", text: "デバイスごとに\n音量を記憶" },
@@ -228,6 +256,8 @@ window.SHOTS = [
         headline: "The volume controls macOS left out,\nright in your menu bar.",
         features: [
           { symbol: "slider.horizontal.3", text: "Per-app\nvolume & mute" },
+          { symbol: "arrow.left.and.right", text: "Per-app\nleft/right balance" },
+          { symbol: "bell.fill", text: "System sounds\nin one row" },
           { symbol: "waveform", text: "Live\nlevel meters" },
           { symbol: "phone.fill", text: "Auto-ducking\nduring calls" },
           { symbol: "headphones", text: "Volume remembered\nper device" },

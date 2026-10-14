@@ -47,6 +47,11 @@ jobs:
       - name: ビルド
         run: make build
 
+      # 一覧の組み立て、本体アプリの解決、ゲインとバランスの計算、保存形式の
+      # 互換は HAL に触らずに試せる。ここで落とせる壊れ方をマージ前に止める。
+      - name: テスト
+        run: make test
+
       # 提出物の組み立て経路をマージ前に一度通す。既定の ad-hoc 署名
       # （IDENTITY=-）なので証明書は要らないが、Info.plist の欠落、
       # PlistBuddy の失敗、iconset の欠け、iconutil の失敗はここで落とせる。

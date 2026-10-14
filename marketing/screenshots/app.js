@@ -46,36 +46,6 @@
     },
   }[lang];
 
-  // 背景のウインドウの中身（架空の動画・曲・通話相手）。
-  const SCENE = {
-    ja: {
-      video: "夕焼けの湖を空から — 4K 空撮",
-      channel: "Skyline Films",
-      views: "12万 回視聴 ・ 3 日前",
-      song: "Night Drive",
-      artist: "Lumen Coast",
-      people: [
-        { name: "佐藤 美咲", mono: "佐", hue: 18 },
-        { name: "Ken", mono: "K", hue: 205 },
-        { name: "高橋 蓮", mono: "高", hue: 150 },
-        { name: "あなた", mono: "", hue: 265 },
-      ],
-    },
-    en: {
-      video: "Sunset over the lake — 4K aerial",
-      channel: "Skyline Films",
-      views: "120K views · 3 days ago",
-      song: "Night Drive",
-      artist: "Lumen Coast",
-      people: [
-        { name: "Sarah", mono: "S", hue: 18 },
-        { name: "Ken", mono: "K", hue: 205 },
-        { name: "Mika", mono: "M", hue: 150 },
-        { name: "You", mono: "", hue: 265 },
-      ],
-    },
-  }[lang];
-
   // ─── 小さな道具 ───────────────────────────────────────────
 
   function h(tag, attrs, ...children) {
@@ -143,10 +113,15 @@
     return h("span", { class: `checkbox ${on ? "on" : ""}` }, on ? sym("checkmark", 8.5) : null);
   }
 
-  function meter(level) {
+  /** レベルメーターと、その上に乗る左右バランスの区切りのつまみ（AppRowView.meterBar）。 */
+  function meter(level, balance, showsKnob) {
     const color = level < 0.7 ? "var(--green)" : level < 0.9 ? "var(--yellow)" : "var(--red)";
-    return h("div", { class: "meter" },
-      h("div", { class: "level", style: { width: `${Math.min(1, Math.max(0, level)) * 100}%`, background: color } }),
+    const b = Math.max(-1, Math.min(1, balance || 0));
+    return h("div", { class: "meterbox" },
+      h("div", { class: "meter" },
+        h("div", { class: "level", style: { width: `${Math.min(1, Math.max(0, level)) * 100}%`, background: color } }),
+      ),
+      h("div", { class: `knob ${b === 0 ? "" : "off"} ${showsKnob ? "" : "hidden"}`, style: { left: `${((b + 1) / 2) * 100}%` } }),
     );
   }
 
@@ -167,7 +142,7 @@
   }
 
   function row(r) {
-    const showsControls = r.hover || r.muted || r.output || r.volume < 0.999;
+    const showsControls = r.hover || r.muted || r.output || r.volume < 0.999 || !!r.balance;
 
     const output = showsControls
       ? h("span", { class: `hstack output ${r.output ? "routed" : ""}` },
@@ -196,7 +171,7 @@
       ),
       h("div", { class: "stack" },
         slider(r.volume, { disabled: r.muted }),
-        meter(r.level),
+        meter(r.level, r.balance, showsControls),
       ),
     );
 
@@ -294,157 +269,12 @@
     return { bar, appmixer };
   }
 
-  // ─── 背景（壁紙と、音を出しているアプリのウインドウ） ─────
+  // ─── 背景 ─────────────────────────────────────────────────
 
-  function wallpaper(dim) {
-    // 光の帯が流れる抽象的な壁紙。macOS の壁紙は使わない（Apple の著作物のため）。
-    return h("div", { class: "wallpaper" },
-      h("div", { class: "blob b1" }),
-      h("div", { class: "blob b2" }),
-      h("div", { class: "blob b3" }),
-      h("div", { class: "blob b4" }),
-      h("div", { class: "blob b5" }),
-      h("div", {
-        class: "ribbons",
-        html: `<svg viewBox="0 0 1440 900" preserveAspectRatio="none" width="1440" height="900">
-          <defs>
-            <linearGradient id="rb1" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".55" stop-color="#bcd4ff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
-            <linearGradient id="rb2" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".6" stop-color="#ffc2e6" stop-opacity=".45"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
-          </defs>
-          <path d="M-100 560 C 300 420, 700 760, 1100 430 S 1500 260, 1600 300" fill="none" stroke="url(#rb1)" stroke-width="3"/>
-          <path d="M-100 620 C 320 470, 720 820, 1120 480 S 1500 320, 1600 360" fill="none" stroke="url(#rb2)" stroke-width="2"/>
-          <path d="M-100 690 C 360 540, 760 880, 1160 540 S 1500 400, 1600 430" fill="none" stroke="url(#rb1)" stroke-width="1.5"/>
-        </svg>`,
-      }),
-      dim ? h("div", { class: "dim", style: { background: `rgba(5, 7, 18, ${dim})` } }) : null,
-    );
+  /** 無地に近い暗い面。ポップオーバーの後ろにだけ、ごく弱い光を置く。 */
+  function wallpaper() {
+    return h("div", { class: "wallpaper" }, h("div", { class: "glow" }));
   }
-
-  const lights = () => h("span", { class: "lights" }, h("i"), h("i"), h("i"));
-
-  /** 動画を流しているブラウザ（ミキサーの「Google Chrome」）。 */
-  function browserWindow(s, z) {
-    const video = h("div", { class: "video" },
-      h("div", { class: "landscape", html: LANDSCAPE }),
-      h("div", { class: "controls" },
-        h("div", { class: "progress" }, h("div", { class: "played" }), h("div", { class: "scrub" })),
-        h("div", { class: "hstack buttons" },
-          sym("pause.fill", 15),
-          sym("forward.fill", 13),
-          sym("speaker.wave.2.fill", 14),
-          h("span", { class: "time", text: "8:24 / 21:37" }),
-          h("span", { class: "spacer" }),
-          sym("arrow.up.left.and.arrow.down.right", 13),
-        ),
-      ),
-    );
-    const win = h("div", { class: "win browser", style: { width: `${s.w}px` } },
-      h("div", { class: "hstack tabbar" },
-        lights(),
-        h("div", { class: "hstack tab" },
-          h("span", { class: "favicon" }, sym("play.fill", 7)),
-          h("span", { class: "tabtitle", text: SCENE.video }),
-        ),
-        sym("plus", 11, { color: "rgba(255,255,255,0.5)" }),
-      ),
-      h("div", { class: "hstack toolbar" },
-        sym("chevron.left", 12), sym("chevron.right", 12, { opacity: 0.4 }), sym("arrow.clockwise", 12),
-        h("div", { class: "hstack omnibox" }, sym("lock.fill", 9), h("span", { text: SCENE.video })),
-      ),
-      video,
-      h("div", { class: "info" },
-        h("div", { class: "vtitle", text: SCENE.video }),
-        h("div", { class: "hstack channel" },
-          h("span", { class: "avatar" }),
-          h("span", { class: "cname", text: SCENE.channel }),
-          h("span", { class: "views", text: SCENE.views }),
-        ),
-      ),
-    );
-    return place(win, s.x, s.y, z);
-  }
-
-  /** 曲を流しているミュージックのミニプレーヤー。 */
-  function musicPlayer(s, z) {
-    const win = h("div", { class: "win mini" },
-      h("div", { class: "art" }),
-      h("div", { class: "meta" },
-        h("div", { class: "song", text: SCENE.song }),
-        h("div", { class: "artist", text: SCENE.artist }),
-        h("div", { class: "hstack transport" },
-          sym("backward.fill", 12), sym("pause.fill", 16), sym("forward.fill", 12),
-        ),
-        h("div", { class: "hstack prog" },
-          h("span", { text: "1:42" }),
-          h("div", { class: "bar" }, h("div")),
-          h("span", { text: "-2:31" }),
-        ),
-      ),
-    );
-    return place(win, s.x, s.y, z);
-  }
-
-  /** FaceTime のグループ通話。 */
-  function callWindow(s, z) {
-    const tiles = SCENE.people.map((p, i) =>
-      h("div", {
-        class: `tile ${i === 0 ? "speaking" : ""}`,
-        style: {
-          background: `radial-gradient(120% 90% at 30% 20%, hsl(${p.hue} 55% 42%), hsl(${p.hue + 30} 45% 18%) 70%)`,
-        },
-      },
-        p.mono
-          ? h("span", { class: "mono", style: { background: `hsl(${p.hue} 35% 62%)` }, text: p.mono })
-          : h("span", { class: "self" }, sym("person.fill", 34)),
-        h("span", { class: "who", text: p.name }),
-      ),
-    );
-    const win = h("div", { class: "win call", style: { width: `${s.w}px` } },
-      h("div", { class: "hstack titlebar" }, lights(), h("span", { class: "wtitle", text: "FaceTime" })),
-      h("div", { class: "tiles" }, tiles),
-      h("div", { class: "hstack callbar" },
-        h("span", { class: "cb" }, sym("mic.fill", 14)),
-        h("span", { class: "cb" }, sym("video.fill", 14)),
-        h("span", { class: "cb end" }, sym("phone.down.fill", 15)),
-      ),
-    );
-    return place(win, s.x, s.y, z);
-  }
-
-  const SCENES = { browser: browserWindow, music: musicPlayer, call: callWindow };
-
-  // 動画の中身。架空の風景（夕焼けの湖）を SVG で描く。
-  const LANDSCAPE = `<svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">
-    <defs>
-      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#18194a"/><stop offset=".35" stop-color="#4a2a7c"/>
-        <stop offset=".58" stop-color="#c24f7d"/><stop offset=".72" stop-color="#ff8f5e"/>
-        <stop offset=".8" stop-color="#ffc98a"/>
-      </linearGradient>
-      <radialGradient id="sun" cx=".6" cy=".7" r=".35">
-        <stop offset="0" stop-color="#fff1c9" stop-opacity=".95"/><stop offset=".25" stop-color="#ffc27a" stop-opacity=".6"/>
-        <stop offset="1" stop-color="#ff8f5e" stop-opacity="0"/>
-      </radialGradient>
-      <linearGradient id="lake" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#6b3a74"/><stop offset="1" stop-color="#140d2a"/>
-      </linearGradient>
-      <linearGradient id="glint" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#ffd9a0" stop-opacity=".9"/><stop offset="1" stop-color="#ffd9a0" stop-opacity="0"/>
-      </linearGradient>
-    </defs>
-    <rect width="1600" height="900" fill="url(#sky)"/>
-    <rect width="1600" height="900" fill="url(#sun)"/>
-    <circle cx="960" cy="610" r="58" fill="#fff4d6"/>
-    <path d="M0 600 L140 520 L260 570 L420 470 L560 560 L700 500 L820 590 L980 540 L1120 600 L1260 500 L1420 560 L1600 480 L1600 680 L0 680 Z" fill="#8a4a86" opacity=".75"/>
-    <path d="M0 640 L180 560 L330 620 L470 540 L640 640 L780 600 L900 660 L1060 610 L1230 660 L1380 580 L1600 640 L1600 700 L0 700 Z" fill="#4b2a6a"/>
-    <rect y="680" width="1600" height="220" fill="url(#lake)"/>
-    <rect x="900" y="680" width="120" height="200" fill="url(#glint)" opacity=".7"/>
-    <rect x="930" y="700" width="60" height="4" fill="#fff0cf" opacity=".8"/>
-    <rect x="910" y="730" width="100" height="3" fill="#ffe1ad" opacity=".55"/>
-    <rect x="940" y="765" width="46" height="3" fill="#ffe1ad" opacity=".45"/>
-    <path d="M0 720 L60 700 L90 640 L110 700 L150 690 L175 610 L200 690 L250 700 L290 650 L320 705 L380 715 L0 760 Z" fill="#0e0a1e"/>
-    <path d="M1600 730 L1540 700 L1510 630 L1490 700 L1440 690 L1415 600 L1390 690 L1330 705 L1300 660 L1270 712 L1220 720 L1600 770 Z" fill="#0e0a1e"/>
-  </svg>`;
 
   // ─── 文字組み ────────────────────────────────────────────
 
@@ -486,13 +316,10 @@
 
   const canvas = document.getElementById("canvas");
 
-  /** 左に文字、右にメニューバーから開いたポップオーバー。背景は音を出しているアプリ。 */
+  /** 左に文字、右にメニューバーから開いたポップオーバー。 */
   function layoutSide() {
     const z = shot.z;
     canvas.append(wallpaper());
-    for (const s of shot.scene || []) canvas.append(SCENES[s.type](s, SCENE_Z));
-    // 文字の下だけ暗くする。右側の壁紙とウインドウはそのまま見せる。
-    canvas.append(h("div", { class: "scrim" }));
 
     const { bar, appmixer } = menubar(z);
     canvas.append(bar);
@@ -528,7 +355,7 @@
 
   function layoutCompare() {
     const z = shot.z;
-    canvas.append(wallpaper(0.5));
+    canvas.append(wallpaper());
 
     const head = h("div", { class: "center-copy" },
       h("div", { class: "eyebrow", text: copy.eyebrow }),
@@ -559,7 +386,7 @@
   }
 
   function layoutGrid() {
-    canvas.append(wallpaper(0.58));
+    canvas.append(wallpaper());
 
     const head = h("div", { class: "center-copy" },
       h("div", { class: "brand" }, icon("appmixer"), h("span", { class: "name", text: "AppMixer" })),

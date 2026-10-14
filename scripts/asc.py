@@ -8,6 +8,7 @@ main へマージしたあとの「アップロード → 処理待ち → 審�
     wait-build   アップロードしたビルドの処理が終わるのを待つ
     submit       バージョンにビルドを紐づけ、リリースノートを入れて審査に出す
     state        いま App Store 側がそのバージョンをどう扱っているかを表示する
+    screenshots  製品ページのスクリーンショットを、書き出した PNG で差し替える
 
 認証は App Store Connect API キー（.p8）。次の環境変数を読む。
 
@@ -20,6 +21,7 @@ main へマージしたあとの「アップロード → 処理待ち → 審�
 """
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -357,6 +359,164 @@ def cmd_submit(args):
     submit_for_review(app, version_id)
 
 
+# --- screenshots ----------------------------------------------------------
+
+# Mac の製品ページの枠。App Store Connect の「Mac」に当たる。
+SCREENSHOT_DISPLAY_TYPE = "APP_DESKTOP"
+
+# ロケール -> marketing/screenshots/build の下のフォルダ。
+# 英語は地域ごとに別ロケールだが、絵は同じものを入れる。
+def screenshot_folder(locale):
+    if locale == "ja":
+        return "ja"
+    if locale.startswith("en"):
+        return "en"
+    return None
+
+
+def upload_chunk(operation, data):
+    """Apple が指定した URL へ、指定されたヘッダーで 1 片を PUT する。"""
+    request = urllib.request.Request(
+        operation["url"], data=data, method=operation.get("method", "PUT")
+    )
+    for header in operation.get("requestHeaders", []):
+        request.add_header(header["name"], header["value"])
+    try:
+        with urllib.request.urlopen(request) as response:
+            response.read()
+    except urllib.error.HTTPError as error:
+        raise ApiError(error.code, error.read().decode(errors="replace")) from None
+
+
+def screenshot_set(localization_id, locale):
+    """そのロケールの Mac 用スクリーンショットの入れ物。無ければ作る。"""
+    found = api(
+        "GET",
+        f"/v1/appStoreVersionLocalizations/{localization_id}/appScreenshotSets",
+        params={"filter[screenshotDisplayType]": SCREENSHOT_DISPLAY_TYPE},
+    )["data"]
+    if found:
+        return found[0]["id"]
+    log(f"{locale} に Mac のスクリーンショットの枠が無いので作ります。")
+    created = api(
+        "POST",
+        "/v1/appScreenshotSets",
+        body={
+            "data": {
+                "type": "appScreenshotSets",
+                "attributes": {"screenshotDisplayType": SCREENSHOT_DISPLAY_TYPE},
+                "relationships": {
+                    "appStoreVersionLocalization": {
+                        "data": {
+                            "type": "appStoreVersionLocalizations",
+                            "id": localization_id,
+                        }
+                    }
+                },
+            }
+        },
+    )
+    return created["data"]["id"]
+
+
+def upload_screenshot(set_id, path):
+    """1 枚を入れる。予約 → 分割アップロード → 確定、の 3 手。"""
+    data = open(path, "rb").read()
+    reserved = api(
+        "POST",
+        "/v1/appScreenshots",
+        body={
+            "data": {
+                "type": "appScreenshots",
+                "attributes": {"fileName": os.path.basename(path), "fileSize": len(data)},
+                "relationships": {
+                    "appScreenshotSet": {"data": {"type": "appScreenshotSets", "id": set_id}}
+                },
+            }
+        },
+    )["data"]
+    for operation in reserved["attributes"]["uploadOperations"]:
+        offset = operation["offset"]
+        upload_chunk(operation, data[offset : offset + operation["length"]])
+    api(
+        "PATCH",
+        f"/v1/appScreenshots/{reserved['id']}",
+        body={
+            "data": {
+                "type": "appScreenshots",
+                "id": reserved["id"],
+                "attributes": {
+                    "uploaded": True,
+                    "sourceFileChecksum": hashlib.md5(data).hexdigest(),
+                },
+            }
+        },
+    )
+    return reserved["id"]
+
+
+def wait_screenshots(screenshot_ids, timeout=600):
+    """Apple 側の取り込みが終わるのを待つ。失敗した枚があれば止める。"""
+    deadline = time.time() + timeout
+    pending = set(screenshot_ids)
+    while pending and time.time() < deadline:
+        for screenshot_id in list(pending):
+            attributes = api("GET", f"/v1/appScreenshots/{screenshot_id}")["data"]["attributes"]
+            state = (attributes.get("assetDeliveryState") or {}).get("state")
+            if state == "COMPLETE":
+                pending.discard(screenshot_id)
+            elif state == "FAILED":
+                errors = (attributes.get("assetDeliveryState") or {}).get("errors")
+                die(f"スクリーンショット {attributes.get('fileName')} の取り込みに失敗しました: {errors}")
+        if pending:
+            time.sleep(5)
+    if pending:
+        die(f"{timeout} 秒待ちましたが取り込みが終わりません。App Store Connect を見てください。")
+
+
+def cmd_screenshots(args):
+    app = app_id()
+    version_id = find_or_create_version(app, args.version, args.release_type)
+    localizations = api(
+        "GET", f"/v1/appStoreVersions/{version_id}/appStoreVersionLocalizations"
+    )["data"]
+    uploaded = []
+    for localization in localizations:
+        locale = localization["attributes"].get("locale")
+        folder = screenshot_folder(locale)
+        if folder is None:
+            log(f"{locale} 用の絵は用意していないので、そのままにします。")
+            continue
+        directory = os.path.join(args.dir, folder)
+        files = sorted(
+            os.path.join(directory, name)
+            for name in os.listdir(directory)
+            if name.lower().endswith(".png")
+        )
+        if not files:
+            die(f"{directory} に PNG がありません。先に make screenshots を実行してください。")
+
+        set_id = screenshot_set(localization["id"], locale)
+        # 入れ替えなので、先に古いものを全部消す。残すと新旧が混ざって並ぶ。
+        existing = api("GET", f"/v1/appScreenshotSets/{set_id}/appScreenshots")["data"]
+        for old in existing:
+            api("DELETE", f"/v1/appScreenshots/{old['id']}")
+        log(f"{locale}: 古い {len(existing)} 枚を消し、{len(files)} 枚を入れます。")
+
+        ids = [upload_screenshot(set_id, path) for path in files]
+        # 並び順はファイル名の番号順（build/ の中と同じ）。
+        api(
+            "PATCH",
+            f"/v1/appScreenshotSets/{set_id}/relationships/appScreenshots",
+            body={"data": [{"type": "appScreenshots", "id": i} for i in ids]},
+        )
+        uploaded.extend(ids)
+        log(f"{locale}: 入れました。")
+
+    wait_screenshots(uploaded)
+    log(f"スクリーンショットを差し替えました（{len(uploaded)} 枚）。")
+
+
 # --- state ----------------------------------------------------------------
 
 
@@ -401,6 +561,16 @@ def main():
         help="バージョンの用意までで止める（審査には出さない）",
     )
     submit.set_defaults(func=cmd_submit)
+
+    shots = sub.add_parser("screenshots", help="製品ページのスクリーンショットを差し替える")
+    shots.add_argument("--version", required=True)
+    shots.add_argument(
+        "--dir",
+        default="marketing/screenshots/build",
+        help="make screenshots の出力先（<dir>/ja, <dir>/en の PNG を使う）",
+    )
+    shots.add_argument("--release-type", default="AFTER_APPROVAL")
+    shots.set_defaults(func=cmd_screenshots)
 
     state = sub.add_parser("state", help="バージョンの状態を表示する")
     state.add_argument("--version", required=True)

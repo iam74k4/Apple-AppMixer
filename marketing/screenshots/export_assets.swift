@@ -72,21 +72,10 @@ let symbols: [(name: String, weight: NSFont.Weight)] = [
     ("mic.slash", .regular),
     ("arrow.left.arrow.right", .semibold),
     ("arrow.down", .semibold),
-    // 背景のウインドウ（ブラウザ・ミュージック・通話）
-    ("chevron.left", .medium),
-    ("chevron.right", .medium),
-    ("arrow.clockwise", .medium),
-    ("lock.fill", .regular),
-    ("plus", .medium),
-    ("play.fill", .regular),
-    ("pause.fill", .regular),
-    ("backward.fill", .regular),
-    ("forward.fill", .regular),
-    ("arrow.up.left.and.arrow.down.right", .medium),
-    ("mic.fill", .regular),
-    ("video.fill", .regular),
-    ("phone.down.fill", .regular),
-    ("person.fill", .regular),
+    // 左右バランスとシステム音
+    ("arrow.left.and.right", .semibold),
+    ("arrow.counterclockwise", .semibold),
+    ("bell.fill", .regular),
 ]
 
 // 大きめに描いて、表示側で縮める。拡大表示でも輪郭が甘くならないように。
@@ -155,6 +144,19 @@ for (key, path) in apps {
         }
     }
     writePNG(rep, to: outDir.appendingPathComponent("icons/\(key).png"))
+}
+
+// 「システム音」の行のアイコン。アプリ本体（AudioApp.icon）と同じく、この Mac の
+// 機種アイコン（NSImage.computerName）を使う。
+do {
+    let icon = NSImage(named: NSImage.computerName)!
+    var rep: NSBitmapImageRep!
+    NSAppearance(named: .darkAqua)!.performAsCurrentDrawingAppearance {
+        rep = bitmap(width: iconPixels, height: iconPixels) {
+            icon.draw(in: NSRect(x: 0, y: 0, width: iconPixels, height: iconPixels))
+        }
+    }
+    writePNG(rep, to: outDir.appendingPathComponent("icons/system.png"))
 }
 
 print("assets -> \(outDir.path)")
