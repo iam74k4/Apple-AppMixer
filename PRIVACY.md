@@ -34,7 +34,7 @@ AppMixer を削除すると、上記の設定も併せて削除されます。
 
 本ポリシーに関するご質問は、GitHub リポジトリの Issues までお寄せください。
 
-https://github.com/iam74k4/AppMixer-MacOS/issues
+https://github.com/iam74k4/Apple-AppMixer/issues
 
 ---
 
@@ -66,4 +66,4 @@ Removing AppMixer also removes the settings described above.
 
 Questions about this policy may be raised via Issues on the GitHub repository.
 
-https://github.com/iam74k4/AppMixer-MacOS/issues
+https://github.com/iam74k4/Apple-AppMixer/issues

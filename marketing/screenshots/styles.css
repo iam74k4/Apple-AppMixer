@@ -2,7 +2,7 @@
  * 版下は 1440×900（CSS px）で組み、2 倍で書き出して 2880×1800 にする。
  * ポップオーバーはアプリの SwiftUI と同じ pt 値で書き、zoom で拡大する。
  * 数値は ContentView / AppRowView の padding・フォントと、macOS 26 の実機の
- * 画面から測ったもの（つまみ 18×14pt、トラック 4pt、行の高さ 60.5pt）。
+ * 画面から測ったもの（つまみ 18×14pt、トラック 4pt、行の高さ 65.5pt）。
  */
 
 :root {
@@ -43,151 +43,25 @@ html, body {
   color: #fff;
 }
 
-/* ─── 背景（壁紙） ───────────────────────────────────────── */
+/* ─── 背景 ─────────────────────────────────────────────────── */
 
+/* 無地に近い暗い面。文言とポップオーバーだけが目に入るようにする。 */
 .wallpaper {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: linear-gradient(150deg, #070a1f 0%, #0d1446 38%, #1c1048 66%, #0b0719 100%);
+  background: linear-gradient(160deg, #0f1424 0%, #0a0d1b 55%, #070910 100%);
 }
-.wallpaper .blob { position: absolute; border-radius: 50%; }
-.wallpaper .b1 { left: 420px; top: -260px; width: 1300px; height: 720px; background: #1f5bff; opacity: 0.85; filter: blur(120px); transform: rotate(-14deg); }
-.wallpaper .b2 { left: 820px; top: 360px; width: 900px; height: 520px; background: #8a3dff; opacity: 0.72; filter: blur(120px); transform: rotate(-22deg); }
-.wallpaper .b3 { left: 380px; top: 640px; width: 860px; height: 420px; background: #ff4f9a; opacity: 0.5; filter: blur(130px); transform: rotate(-8deg); }
-.wallpaper .b4 { left: 1080px; top: -120px; width: 560px; height: 300px; background: #36d1ff; opacity: 0.55; filter: blur(90px); }
-.wallpaper .b5 { left: 1180px; top: 700px; width: 520px; height: 300px; background: #ff9f5a; opacity: 0.35; filter: blur(110px); }
-.wallpaper .ribbons { position: absolute; inset: 0; filter: blur(1.5px); opacity: 0.9; }
-.wallpaper .dim { position: absolute; inset: 0; }
-
-/* 文字の下だけ暗くする。右へ向かって壁紙へ溶かす。 */
-.scrim {
+/* ポップオーバーの後ろの、ごく弱い青い光。面が平板になりすぎるのを防ぐ。 */
+.wallpaper .glow {
   position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg,
-    rgba(5, 7, 18, 0.94) 0%,
-    rgba(5, 7, 18, 0.88) 30%,
-    rgba(5, 7, 18, 0.5) 44%,
-    rgba(5, 7, 18, 0) 58%);
+  left: 640px;
+  top: -160px;
+  width: 1000px;
+  height: 760px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(10, 132, 255, 0.22), rgba(10, 132, 255, 0));
 }
-
-/* ─── 背景のウインドウ ─────────────────────────────────────── */
-
-.win {
-  zoom: var(--z);
-  border-radius: 14px;
-  overflow: hidden;
-  background: rgba(28, 28, 32, 0.92);
-  -webkit-backdrop-filter: blur(30px) saturate(1.6);
-  backdrop-filter: blur(30px) saturate(1.6);
-  box-shadow:
-    0 0 0 0.5px rgba(255, 255, 255, 0.16) inset,
-    0 0 0 0.5px rgba(0, 0, 0, 0.6),
-    0 24px 60px rgba(0, 0, 0, 0.5);
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 12px;
-}
-.lights { display: inline-flex; gap: 8px; }
-.lights i { width: 12px; height: 12px; border-radius: 6px; display: block; }
-.lights i:nth-child(1) { background: #ff5f57; }
-.lights i:nth-child(2) { background: #febc2e; }
-.lights i:nth-child(3) { background: #28c840; }
-
-/* ブラウザ */
-.browser .tabbar { height: 40px; padding: 0 12px 0 16px; gap: 14px; background: rgba(255, 255, 255, 0.03); }
-.browser .tab {
-  gap: 7px;
-  height: 28px;
-  margin-top: 8px;
-  padding: 0 12px;
-  width: 230px;
-  border-radius: 8px 8px 0 0;
-  background: rgba(255, 255, 255, 0.08);
-}
-.browser .favicon {
-  width: 14px; height: 14px; border-radius: 4px; flex: none;
-  display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(135deg, #5b8cff, #a45bff); color: #fff;
-}
-.browser .tabtitle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; }
-.browser .toolbar { height: 36px; padding: 0 12px; gap: 14px; background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.75); }
-.browser .omnibox {
-  flex: 1; height: 26px; gap: 7px; padding: 0 10px;
-  border-radius: 13px; background: rgba(0, 0, 0, 0.28);
-  font-size: 12px; color: rgba(255, 255, 255, 0.7); white-space: nowrap; overflow: hidden;
-}
-.browser .video { position: relative; aspect-ratio: 16 / 9; background: #000; overflow: hidden; }
-.browser .landscape, .browser .landscape svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.browser .controls {
-  position: absolute; left: 0; right: 0; bottom: 0;
-  padding: 26px 14px 10px;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
-  color: #fff;
-}
-.browser .progress { position: relative; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.3); margin-bottom: 10px; }
-.browser .progress .played { position: absolute; left: 0; top: 0; bottom: 0; width: 39%; border-radius: 2px; background: #fff; }
-.browser .progress .scrub { position: absolute; left: 39%; top: -4.5px; width: 12px; height: 12px; margin-left: -6px; border-radius: 6px; background: #fff; }
-.browser .buttons { gap: 18px; }
-.browser .time { font-size: 12px; font-variant-numeric: tabular-nums; opacity: 0.9; }
-.browser .info { padding: 12px 16px 16px; }
-.browser .vtitle { font-size: 16px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.browser .channel { gap: 8px; margin-top: 8px; font-size: 12px; color: rgba(255, 255, 255, 0.6); }
-.browser .avatar { width: 22px; height: 22px; border-radius: 11px; background: linear-gradient(135deg, #ff8f5e, #c24f7d); flex: none; }
-.browser .cname { color: rgba(255, 255, 255, 0.85); font-weight: 600; }
-
-/* ミニプレーヤー */
-.mini { display: flex; gap: 14px; padding: 12px; width: 300px; border-radius: 16px; }
-.mini .art {
-  width: 76px; height: 76px; border-radius: 8px; flex: none;
-  background:
-    radial-gradient(circle at 68% 34%, #ffe0a3 0 9%, transparent 10%),
-    radial-gradient(120% 90% at 20% 110%, #ff4f9a, transparent 60%),
-    radial-gradient(90% 80% at 90% 10%, #36d1ff, transparent 60%),
-    linear-gradient(150deg, #3a1c8f, #1f5bff);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-}
-.mini .meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.mini .song { font-size: 13px; font-weight: 700; color: #fff; }
-.mini .artist { font-size: 11.5px; color: rgba(255, 255, 255, 0.6); margin-top: 2px; }
-.mini .transport { gap: 20px; margin-top: 8px; color: rgba(255, 255, 255, 0.92); }
-.mini .prog { gap: 7px; margin-top: 7px; font-size: 9.5px; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.5); }
-.mini .bar { flex: 1; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.2); overflow: hidden; }
-.mini .bar div { width: 40%; height: 100%; background: rgba(255, 255, 255, 0.75); }
-
-/* 通話 */
-.call { position: relative; background: rgba(20, 20, 24, 0.95); }
-.call .titlebar { height: 34px; padding: 0 14px; gap: 12px; }
-.call .wtitle { position: absolute; left: 0; right: 0; text-align: center; font-size: 12px; font-weight: 600; color: rgba(255, 255, 255, 0.75); pointer-events: none; }
-.call .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 0 4px 4px; }
-.call .tile {
-  position: relative; aspect-ratio: 4 / 3; border-radius: 10px; overflow: hidden;
-  display: flex; align-items: center; justify-content: center;
-}
-.call .tile.speaking { box-shadow: 0 0 0 2.5px rgba(255, 255, 255, 0.9) inset; }
-.call .mono {
-  width: 64px; height: 64px; border-radius: 32px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 26px; font-weight: 600; color: #fff;
-}
-.call .self { color: rgba(255, 255, 255, 0.55); }
-.call .who {
-  position: absolute; left: 8px; bottom: 7px;
-  padding: 2px 7px; border-radius: 6px;
-  background: rgba(0, 0, 0, 0.35);
-  font-size: 11px; font-weight: 600; color: #fff;
-}
-.call .callbar {
-  position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
-  gap: 12px; padding: 7px 10px; border-radius: 26px;
-  background: rgba(30, 30, 34, 0.8);
-  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
-}
-.call .cb {
-  width: 34px; height: 34px; border-radius: 17px;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(255, 255, 255, 0.16); color: #fff;
-}
-.call .cb.end { background: #ff3b30; }
 
 /* ─── メニューバー ─────────────────────────────────────────── */
 
@@ -329,12 +203,25 @@ html, body {
 .row .mute { width: 16px; display: flex; justify-content: center; color: var(--secondary); }
 .row .mute.on { color: var(--accent); }
 .row .mute.hidden { opacity: 0; }
-.row .stack { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.row .stack { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .row .rowdivider { margin-left: 44px; }
 .row.idle { opacity: 0.55; }
 
-.meter { position: relative; height: 4px; border-radius: 2px; background: var(--quaternary); overflow: hidden; }
+/* メーター（4pt）は 10pt の箱の中央。箱の高さぶんがバランスのつまみ。 */
+.meterbox { position: relative; height: 10px; }
+.meter { position: absolute; left: 0; right: 0; top: 3px; height: 4px; border-radius: 2px; background: var(--quaternary); overflow: hidden; }
 .meter .level { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; }
+.meterbox .knob {
+  position: absolute;
+  top: 0;
+  width: 3px;
+  height: 10px;
+  margin-left: -1.5px;
+  border-radius: 1.5px;
+  background: var(--secondary);
+}
+.meterbox .knob.off { background: var(--accent); }
+.meterbox .knob.hidden { opacity: 0; }
 
 .badge { color: var(--orange); }
 
@@ -511,30 +398,30 @@ html[lang="en"] .sub { line-height: 1.5; }
 
 .grid {
   position: absolute;
-  left: 96px;
-  right: 96px;
+  left: 72px;
+  right: 72px;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
 }
 .card {
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 28px 28px;
+  gap: 16px;
+  padding: 24px 20px;
   border-radius: 22px;
   background: rgba(255, 255, 255, 0.08);
   -webkit-backdrop-filter: blur(24px) saturate(1.4);
   backdrop-filter: blur(24px) saturate(1.4);
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
-  font-size: 24px;
+  font-size: 21px;
   font-weight: 700;
   line-height: 1.3;
   color: #fff;
 }
 .card .dot {
-  width: 60px;
-  height: 60px;
+  width: 56px;
+  height: 56px;
   border-radius: 16px;
   display: flex;
   align-items: center;

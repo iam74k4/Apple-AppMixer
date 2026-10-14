@@ -16,12 +16,16 @@ final class MixerController {
     struct State: Equatable {
         var volume: Float = 1.0
         var muted: Bool = false
+        /// 左右バランス（-1 で左だけ、0 で中央、+1 で右だけ）。
+        var balance: Float = 0
         /// 出力先デバイスの UID。nil なら既定出力に追従する。
         var outputDeviceUID: String?
         /// ユーザー操作による音量（ダッキングを含まない）。
         var userGain: Float { muted ? 0.0 : volume }
+        /// バランスを中央から動かしているか。
+        var hasBalance: Bool { abs(balance) > 0.001 }
         /// 既定と異なる設定を持っているか（＝タップを維持すべきか）。
-        var isCustomized: Bool { userGain < 0.999 || outputDeviceUID != nil }
+        var isCustomized: Bool { userGain < 0.999 || outputDeviceUID != nil || hasBalance }
     }
 
     /// ダッキング中に適用する倍率（1.0 で無効）。
@@ -138,6 +142,15 @@ final class MixerController {
     func setMuted(_ muted: Bool, for app: AudioApp) -> Bool {
         var s = states[app.id] ?? State()
         s.muted = muted
+        states[app.id] = s
+        return apply(s, for: app)
+    }
+
+    /// 左右バランスを設定する（-1...1、0 で中央）。反映できたら true。
+    @discardableResult
+    func setBalance(_ balance: Float, for app: AudioApp) -> Bool {
+        var s = states[app.id] ?? State()
+        s.balance = Balance.clamped(balance)
         states[app.id] = s
         return apply(s, for: app)
     }
@@ -431,6 +444,7 @@ final class MixerController {
                 // 100% 付近で往復するたびに集約デバイスを作り直すと、その
                 // デバイスで再生中の全アプリが音飛びするため。
                 tap.gain = gain
+                tap.balance = state.balance
                 return true
             }
             // 先に新しいタップを起動してから古い方を破棄する（make-before-break）。
@@ -449,12 +463,19 @@ final class MixerController {
         }
 
         // タップが無く、原音のまま既定出力でよいなら何もしない。
-        if gain >= 0.999 && state.outputDeviceUID == nil { return true }
+        if !Self.requiresTap(gain: gain, state: state) { return true }
 
         guard let tap = makeTap(for: app, gain: gain) else { return false }
         taps[app.id] = tap
         if clearRebuildFailure(app.id) { onTapTroubleChanged?() }
         return true
+    }
+
+    /// この設定を鳴らすのにタップが要るか。
+    /// 原音のまま（ダッキング込みで 100%）、既定出力、バランス中央なら、
+    /// 通常経路のままでよい。
+    static func requiresTap(gain: Float, state: State) -> Bool {
+        gain < 0.999 || state.outputDeviceUID != nil || state.hasBalance
     }
 
     /// 現在の設定に一致するタップが張られているか。
@@ -560,15 +581,20 @@ final class MixerController {
     }
 
     private func makeTap(for app: AudioApp, gain: Float) -> ProcessTap? {
+        let state = states[app.id] ?? State()
         let tap = ProcessTap(
             processObjectIDs: app.processObjectIDs,
-            outputDeviceUID: (states[app.id] ?? State()).outputDeviceUID
+            outputDeviceUID: state.outputDeviceUID
         )
-        // 新しいタップは目標ゲインから始める（開始時にフェードさせない）。
-        tap.state.currentGain = gain
+        // 目標ゲインは activate が形式を決めた時点で現在値に揃える
+        // （開始時にフェードさせない）。
         tap.gain = gain
+        tap.balance = state.balance
         do {
             try tap.activate()
+            // 成功も残す。失敗だけだと「張られたのか、張る必要が無かったのか」が
+            // ログから分からず、実機での確認がしづらい。
+            AppLog.audio.info("Activated tap for \(app.name, privacy: .private) (\(app.processObjectIDs.count, privacy: .public) processes, gain \(gain, privacy: .public), balance \(state.balance, privacy: .public))")
             return tap
         } catch {
             AppLog.audio.error("Failed to activate tap for \(app.name, privacy: .private): \(error.localizedDescription, privacy: .public)")
@@ -692,8 +718,8 @@ final class MixerController {
     /// 既定出力の変更に合わせてタップを 1 つ張り直す。成功で true。
     private func rebuildTap(id: String, replacing oldTap: ProcessTap) -> Bool {
         let newTap = ProcessTap(processObjectIDs: oldTap.processObjectIDs)
-        newTap.state.currentGain = oldTap.gain
         newTap.gain = oldTap.gain
+        newTap.balance = oldTap.balance
         do {
             // 新しい出力先のタップを起動してから古い方を落とす。
             // 逆順にすると、その隙間だけ対象アプリが全音量で鳴る。

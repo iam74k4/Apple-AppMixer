@@ -36,8 +36,12 @@ enum DuckingDetector {
     ]
 
     /// 対象アプリが通話に使われうるか（＝絞ってはいけないか）。
+    ///
+    /// 「システム音」も絞らない。FaceTime や iPhone の通話の相手の声は
+    /// アプリではなくデーモン（avconferenced）から出るため、この行に入る。
+    /// 通話中に通知音まで絞れない代わりに、相手の声を小さくしてしまわない。
     static func isCommunicationApp(_ app: AudioApp) -> Bool {
-        matches(app, prefixes: communicationBundlePrefixes)
+        app.isSystem || matches(app, prefixes: communicationBundlePrefixes)
     }
 
     /// 対象アプリが会議アプリか（＝出音を通話の合図とみなすか）。

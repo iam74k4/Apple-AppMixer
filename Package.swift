@@ -15,6 +15,11 @@ let package = Package(
         .executableTarget(
             name: "AppMixer",
             path: "Sources/AppMixer"
+        ),
+        .testTarget(
+            name: "AppMixerTests",
+            dependencies: ["AppMixer"],
+            path: "Tests/AppMixerTests"
         )
     ]
 )

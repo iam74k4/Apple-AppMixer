@@ -389,7 +389,7 @@ struct ContentView: View {
     }()
 
     private func openIssues() {
-        guard let url = URL(string: "https://github.com/iam74k4/AppMixer-MacOS/issues") else {
+        guard let url = URL(string: "https://github.com/iam74k4/Apple-AppMixer/issues") else {
             return
         }
         NSWorkspace.shared.open(url)
