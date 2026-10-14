@@ -5,10 +5,9 @@
 
 ## [未リリース]
 
-## [1.0.2] - 未リリース
+## [1.1.0] - 未リリース
 
 ### 追加
-- 英語の画面。macOS の言語が英語（日本語・英語以外の言語も含む）のときは英語で表示する
 - 「システム音」の行。通知音・警告音・効果音など、どのアプリにも属さない音を
   1 行にまとめ、音量・ミュート・出力先を変えられるようにした
 - アプリごとの左右バランス。レベルメーターの上の区切りのつまみをドラッグすると
@@ -24,6 +23,11 @@
 - Safari・メールなど WebKit を使うアプリの音が「Safari Graphics and Media」
   という名前でアイコン無しに、しかも 1 行にまとめて出ていたのを、
   それぞれのアプリの名前とアイコンで出すようにした
+
+## [1.0.2] - 2026-09-29
+
+### 追加
+- 英語の画面。macOS の言語が英語（日本語・英語以外の言語も含む）のときは英語で表示する
 
 ## [1.0.1] - 2026-08-28
 
@@ -49,6 +53,7 @@
   （出力先の切り替えに追従できず音が止まった場合は復旧を試み続ける）
 
 [未リリース]: https://github.com/iam74k4/Apple-AppMixer/compare/main...HEAD
-[1.0.2]: https://github.com/iam74k4/Apple-AppMixer/compare/v1.0.1...HEAD
+[1.1.0]: https://github.com/iam74k4/Apple-AppMixer/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/iam74k4/Apple-AppMixer/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/iam74k4/Apple-AppMixer/compare/v1.0...v1.0.1
 [1.0]: https://github.com/iam74k4/Apple-AppMixer/releases/tag/v1.0
