@@ -31,6 +31,8 @@ final class MixerModel: ObservableObject {
         let icon: NSImage?
         var volume: Float
         var muted: Bool
+        /// 左右バランス（-1...1、0 で中央）。
+        var balance: Float
         var level: Float
         /// タップが張られている（＝レベルを計測できる）場合のみメーターを表示する。
         var metered: Bool
@@ -319,6 +321,7 @@ final class MixerModel: ObservableObject {
                 icon: cachedIcon(for: app),
                 volume: state.volume,
                 muted: state.muted,
+                balance: state.balance,
                 level: controller.level(forID: app.id),
                 metered: controller.hasFreshTap(for: app),
                 // 無音になっている方が重い。こちらを優先して見せる。
@@ -388,6 +391,7 @@ final class MixerModel: ObservableObject {
             let state = MixerController.State(
                 volume: remembered.volume,
                 muted: remembered.muted,
+                balance: remembered.balance,
                 outputDeviceUID: nil
             )
 
@@ -417,10 +421,11 @@ final class MixerModel: ObservableObject {
         guard let device = currentDefaultDeviceUID,
               let remembered = storedSettings(for: app).perDevice[device] else { return }
 
-        // 振り分け先は既に nil へ直っている。音量とミュートだけ入れ替える。
+        // 振り分け先は既に nil へ直っている。音量とミュートとバランスだけ入れ替える。
         var state = controller.state(forID: app.id)
         state.volume = remembered.volume
         state.muted = remembered.muted
+        state.balance = remembered.balance
 
         // 鳴っていないアプリにタップは張らない。controller.setVolume() を使うと
         // 張ってしまうため、状態の入れ方を再生中かどうかで分ける。
@@ -890,6 +895,22 @@ final class MixerModel: ObservableObject {
         }
     }
 
+    /// 左右バランスを設定する。つまみのドラッグ中に連続して呼ばれるため、
+    /// 保存は setVolume と同じく手が止まるのを待って 1 回にする。
+    func setBalance(_ balance: Float, for app: AudioApp) {
+        let ok = controller.setBalance(balance, for: app)
+        if ok {
+            scheduleSave(for: app)
+        } else {
+            pendingSaves.removeValue(forKey: app.id)?.work.cancel()
+        }
+        updateRow(app.id) {
+            $0.balance = controller.state(forID: app.id).balance
+            $0.metered = controller.hasFreshTap(for: app)
+            $0.trouble = ok ? nil : .notApplied
+        }
+    }
+
     // MARK: - Master
 
     func setMasterVolume(_ volume: Float) {
@@ -944,51 +965,7 @@ final class MixerModel: ObservableObject {
 
     // MARK: - Persistence
     //
-    // 音量とミュートは「アプリ × 出力デバイス」で覚える。
-    // ヘッドフォンとスピーカーでは適正音量が違うため、1 つしか覚えないと
-    // 挿し替えるたびに調整し直しになる。
-    // 出力先の振り分け（ルーティング）はデバイスに依存しないのでアプリ単位。
-
-    /// あるデバイスでの音量設定。
-    private struct DeviceVolume: Codable {
-        var volume: Float
-        var muted: Bool
-    }
-
-    /// アプリ 1 つぶんの保存内容。
-    ///
-    /// 形が変わっても古い保存内容を捨てずに読めるよう、版番号を持たせ、
-    /// 各項目は「無ければ既定値」で読む。新しい版が増えた項目を、
-    /// 古いアプリが読み落として黙って消す事故を避けるための備え。
-    private struct StoredSettings: Codable {
-        /// この形式の版。読み書きの互換判断に使う。
-        var version: Int = StoredSettings.currentVersion
-        /// 振り分け先（nil なら既定出力に追従）。
-        var outputDeviceUID: String?
-        /// 出力デバイス UID -> 音量設定。
-        var perDevice: [String: DeviceVolume] = [:]
-        /// 最後に使った音量。まだ記憶の無いデバイスへ移ったときの引き継ぎ元。
-        /// これが無いと、鳴っていない間にデバイスが変わったアプリだけ
-        /// 100% で鳴り出してしまう（鳴っていた場合は引き継がれるのに）。
-        var lastKnown: DeviceVolume?
-
-        static let currentVersion = 1
-
-        init(outputDeviceUID: String? = nil) {
-            self.outputDeviceUID = outputDeviceUID
-        }
-
-        init(from decoder: Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            // 版が無いものは v1 より前の何かとして扱う。いまのところ
-            // 出荷済みの旧形式は無いので、既定値のまま読み進めればよい。
-            version = try container.decodeIfPresent(Int.self, forKey: .version) ?? 0
-            outputDeviceUID = try container.decodeIfPresent(String.self, forKey: .outputDeviceUID)
-            perDevice = try container.decodeIfPresent(
-                [String: DeviceVolume].self, forKey: .perDevice) ?? [:]
-            lastKnown = try container.decodeIfPresent(DeviceVolume.self, forKey: .lastKnown)
-        }
-    }
+    // 保存の形は StoredSettings.swift。ここは読み書きの手順だけ。
 
     /// 読み込んだ保存内容と、それを書き戻してよいか。
     private struct LoadedSettings {
@@ -999,7 +976,7 @@ final class MixerModel: ObservableObject {
     }
 
     private func storageKey(for app: AudioApp) -> String? {
-        app.bundleID.map { "appmixer.setting.\($0)" }
+        app.storageKey.map { "appmixer.setting.\($0)" }
     }
 
     /// いまそのアプリの音が出ているデバイスの UID。
@@ -1030,7 +1007,7 @@ final class MixerModel: ObservableObject {
         // 書き戻すと知らない項目が落ちるため上書きはしない。
         return LoadedSettings(
             settings: stored,
-            isForeign: stored.version > StoredSettings.currentVersion
+            isForeign: stored.isNewerThanSupported
         )
     }
 
@@ -1090,7 +1067,7 @@ final class MixerModel: ObservableObject {
         var stored = loaded.settings
         stored.version = StoredSettings.currentVersion
         stored.outputDeviceUID = state.outputDeviceUID
-        let volume = DeviceVolume(volume: state.volume, muted: state.muted)
+        let volume = DeviceVolume(volume: state.volume, muted: state.muted, balance: state.balance)
         // デバイスの UID が読めないときは、そのデバイスぶんの記憶は書かない。
         // 代用キーへ書くと別デバイスの記憶と混ざってしまう。
         if let device = deviceKey(for: app) { stored.perDevice[device] = volume }
@@ -1113,7 +1090,8 @@ final class MixerModel: ObservableObject {
             return MixerController.State(outputDeviceUID: stored.outputDeviceUID)
         }
         return MixerController.State(
-            volume: saved.volume, muted: saved.muted, outputDeviceUID: stored.outputDeviceUID
+            volume: saved.volume, muted: saved.muted, balance: saved.balance,
+            outputDeviceUID: stored.outputDeviceUID
         )
     }
 

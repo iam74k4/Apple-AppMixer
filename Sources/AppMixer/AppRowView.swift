@@ -7,6 +7,8 @@ struct AppRowView: View {
 
     /// カーソルが乗っている間だけ、普段は伏せている操作を出す。
     @State private var isHovered = false
+    /// つまみのドラッグを始めたときのバランス。移動量をここに足す。
+    @State private var dragStartBalance: Float?
 
     private var app: AudioApp { display.app }
 
@@ -14,7 +16,7 @@ struct AppRowView: View {
     /// そうしないと「なぜこのアプリだけ音が違うのか」が分からなくなる。
     private var showsControls: Bool {
         isHovered || display.muted || display.outputDeviceUID != nil
-            || display.volume < 0.999
+            || display.volume < 0.999 || display.balance != 0
     }
 
     var body: some View {
@@ -41,10 +43,7 @@ struct AppRowView: View {
 
     private var titleLine: some View {
         HStack(spacing: 6) {
-            Text(app.name)
-                .font(.callout).fontWeight(.medium)
-                .lineLimit(1)
-                .truncationMode(.tail)
+            nameLabel
 
             statusBadge
 
@@ -66,6 +65,20 @@ struct AppRowView: View {
                 .onTapGesture(count: 2) {
                     model.setVolume(1.0, for: app)
                 }
+        }
+    }
+
+    /// アプリ名。「システム音」だけは何が入っているかの説明を添える。
+    @ViewBuilder
+    private var nameLabel: some View {
+        let name = Text(app.name)
+            .font(.callout).fontWeight(.medium)
+            .lineLimit(1)
+            .truncationMode(.tail)
+        if app.isSystem {
+            name.help(localized("通知音・警告音・効果音など、アプリに属さない音をまとめたものです"))
+        } else {
+            name
         }
     }
 
@@ -111,7 +124,7 @@ struct AppRowView: View {
 
             // スライダーとメーターを同じ幅・同じ開始位置に揃えると、
             // メーターが「そのスライダーのレベル」として読める。
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 Slider(
                     value: Binding(
                         get: { Double(display.volume) },
@@ -189,19 +202,71 @@ struct AppRowView: View {
         .help("このアプリの出力先を選ぶ")
     }
 
+    /// レベルメーター。左右バランスの「区切りのつまみ」を兼ねる。
+    ///
+    /// つまみは左右の境目を表し、ドラッグで片側を絞る。ダブルクリックで
+    /// 中央に戻す。メーターの伸びは計測できている（タップが張れている）
+    /// 行だけに出し、つまみは操作を見せている間だけ出す。
     private var meterBar: some View {
         GeometryReader { geo in
+            let width = geo.size.width
+            let height = geo.size.height
             ZStack(alignment: .leading) {
-                Capsule().fill(.quaternary)
+                Capsule()
+                    .fill(.quaternary)
+                    .frame(height: Self.meterHeight)
                 Capsule()
                     .fill(meterColor)
-                    .frame(width: geo.size.width * CGFloat(min(1, max(0, display.level))))
+                    .frame(width: width * CGFloat(min(1, max(0, display.level))),
+                           height: Self.meterHeight)
                     .animation(.linear(duration: 0.05), value: display.level)
+                    .opacity(showsMeter ? 1 : 0)
+                // 区切りのつまみ。中央から動かしているときはアクセント色にして、
+                // 「この行だけ片側が小さい」と分かるようにする。
+                Capsule()
+                    .fill(display.balance == 0 ? Color.secondary : Color.accentColor)
+                    .frame(width: 3, height: height)
+                    .position(x: Balance.x(of: display.balance, width: width), y: height / 2)
+                    .opacity(showsControls ? 1 : 0)
             }
+            .frame(height: height)
+            // 棒の上ならどこでも掴める。4pt の線の上だけでは当たらない。
+            .contentShape(Rectangle())
+            .onTapGesture(count: 2) {
+                model.setBalance(0, for: app)
+            }
+            // 押した位置へ飛ばさず、動かしたぶんだけ動かす。ダブルクリックの
+            // 1 回目や狙いを外したクリックで、押しただけでは変わらないように。
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        let start = dragStartBalance ?? display.balance
+                        dragStartBalance = start
+                        let next = Balance.dragged(
+                            from: start, translation: value.translation.width, width: width
+                        )
+                        if next != display.balance { model.setBalance(next, for: app) }
+                    }
+                    .onEnded { _ in dragStartBalance = nil }
+            )
         }
-        .frame(height: 4)
-        // 計測できていない行は伸びようがないので、出しても誤解を招く。
-        .opacity(app.isRunningOutput && display.metered ? 1 : 0)
+        .frame(height: Self.knobHeight)
+        .opacity(showsMeter || showsControls ? 1 : 0)
+        .allowsHitTesting(showsControls)
+        .help(balanceHelp)
+    }
+
+    private static let meterHeight: CGFloat = 4
+    private static let knobHeight: CGFloat = 10
+
+    /// 計測できていない行は伸びようがないので、出しても誤解を招く。
+    private var showsMeter: Bool { app.isRunningOutput && display.metered }
+
+    private var balanceHelp: String {
+        String(
+            format: localized("左右バランス: %@。ドラッグで片側を絞り、ダブルクリックで中央に戻します"),
+            Balance.label(display.balance)
+        )
     }
 
     private var meterColor: Color {
