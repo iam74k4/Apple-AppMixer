@@ -35,7 +35,13 @@ VERSION := $(shell /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString
 # 手で上げ忘れると、新しい版を入れても OS が古いままだと見なすことがある。
 # 表示用バージョンから機械的に導いて、上げ忘れを起こさないようにする。
 # 例: 0.1.0 -> 100 / 1.2.3 -> 10203
-BUILD_NUMBER ?= $(shell echo "$(VERSION)" | awk -F. '{ printf "%d", ($$1*10000)+($$2*100)+$$3 }')
+#
+# 同じ表示用バージョンを出し直す（審査を取り下げて別のビルドを出す）ときは、
+# 導出値では番号が重複して App Store Connect に弾かれる。その場合だけ
+# bundle/Info.plist の CFBundleVersion を導出値より大きく書いておくと、そちらを使う。
+DERIVED_BUILD := $(shell echo "$(VERSION)" | awk -F. '{ printf "%d", ($$1*10000)+($$2*100)+$$3 }')
+PLIST_BUILD   := $(shell /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" bundle/Info.plist 2>/dev/null)
+BUILD_NUMBER  ?= $(shell echo "$(DERIVED_BUILD) $(PLIST_BUILD)" | awk '{ print ($$2+0 > $$1+0) ? $$2 : $$1 }')
 
 # 開発中の署名。既定は ad-hoc。提出用は下の MAS_IDENTITY を使う。
 IDENTITY ?= -

@@ -19,9 +19,10 @@
     <key>CFBundleShortVersionString</key>
     <string>1.1.0</string>
     <!-- ビルド時に Makefile が CFBundleShortVersionString から導いて上書きする
-         （1.0 -> 10000）。ここの値は手で編集しなくてよい。 -->
+         （1.0 -> 10000）。普段は手で編集しなくてよい。同じ版を出し直すときだけ、
+         導出値より大きい番号をここに書く（Makefile はその場合こちらを使う）。 -->
     <key>CFBundleVersion</key>
-    <string>10100</string>
+    <string>10101</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <!-- App Store の提出に必須。 -->

@@ -9,6 +9,7 @@ main へマージしたあとの「アップロード → 処理待ち → 審�
     submit       バージョンにビルドを紐づけ、リリースノートを入れて審査に出す
     state        いま App Store 側がそのバージョンをどう扱っているかを表示する
     screenshots  製品ページのスクリーンショットを、書き出した PNG で差し替える
+    withdraw     審査中のバージョンがあれば取り下げて、編集できる状態に戻す
 
 認証は App Store Connect API キー（.p8）。次の環境変数を読む。
 
@@ -372,6 +373,61 @@ def cmd_submit(args):
     submit_for_review(app, version_id)
 
 
+# --- withdraw -------------------------------------------------------------
+
+# 審査に出ていて、Apple の手の中にある状態。この間は版を編集できない。
+IN_REVIEW_STATES = {"WAITING_FOR_REVIEW", "IN_REVIEW", "UNRESOLVED_ISSUES"}
+
+
+def cmd_withdraw(args):
+    """同じ版を出し直すために、審査中の提出を取り下げる。
+
+    取り下げないと、新しいビルドの紐づけもスクリーンショットの差し替えも
+    「編集できない状態」で弾かれる。審査に出ていなければ何もしない。
+    """
+    app = app_id()
+    version = find_version(app, args.version)
+    if version is None:
+        log(f"バージョン {args.version} はまだ無いので、取り下げるものはありません。")
+        return
+    state = version_state(version)
+    if state not in IN_REVIEW_STATES:
+        log(f"{args.version} は {state}。審査中ではないので、そのまま進めます。")
+        return
+
+    submissions = api(
+        "GET",
+        "/v1/reviewSubmissions",
+        params={"filter[app]": app, "filter[state]": ",".join(sorted(IN_REVIEW_STATES))},
+    )["data"]
+    if not submissions:
+        die(f"{args.version} は {state} ですが、取り下げられる提出物が見つかりません。")
+    for submission in submissions:
+        api(
+            "PATCH",
+            f"/v1/reviewSubmissions/{submission['id']}",
+            body={
+                "data": {
+                    "type": "reviewSubmissions",
+                    "id": submission["id"],
+                    "attributes": {"canceled": True},
+                }
+            },
+        )
+        log(f"提出 {submission['id']} を取り下げました。")
+
+    # 取り下げが版に反映されるまで少し待つ。すぐ次へ進むと、まだ審査中の
+    # 扱いでビルドの紐づけが弾かれる。
+    deadline = time.time() + args.timeout
+    while time.time() < deadline:
+        state = version_state(find_version(app, args.version))
+        if state not in IN_REVIEW_STATES:
+            log(f"{args.version} は {state} になりました。")
+            return
+        time.sleep(10)
+    die(f"{args.timeout} 秒待ちましたが {args.version} が審査中のままです。App Store Connect を見てください。")
+
+
 # --- screenshots ----------------------------------------------------------
 
 # Mac の製品ページの枠。App Store Connect の「Mac」に当たる。
@@ -574,6 +630,11 @@ def main():
         help="バージョンの用意までで止める（審査には出さない）",
     )
     submit.set_defaults(func=cmd_submit)
+
+    withdraw = sub.add_parser("withdraw", help="審査中の提出を取り下げる（同じ版の出し直し用）")
+    withdraw.add_argument("--version", required=True)
+    withdraw.add_argument("--timeout", type=int, default=300)
+    withdraw.set_defaults(func=cmd_withdraw)
 
     shots = sub.add_parser("screenshots", help="製品ページのスクリーンショットを差し替える")
     shots.add_argument("--version", required=True)

@@ -19,6 +19,9 @@ PR: develop → main ─ マージ ─▶ release.yml
                                   │    make mas で .pkg を作り、
                                   │    App Store Connect へ送る
                                   │
+                                  ├─ withdraw (Linux)
+                                  │    同じ版が審査中なら取り下げる
+                                  │
                                   ├─ screenshots (macOS)
                                   │    make screenshots で絵を作り、
                                   │    製品ページの絵を差し替える
@@ -40,6 +43,7 @@ PR: develop → main ─ マージ ─▶ release.yml
 | 誰が | 何を |
 |---|---|
 | 自動（release.yml / upload） | ビルド、署名、.pkg 作成、アップロード |
+| 自動（release.yml / withdraw） | 同じ版が審査中なら取り下げる（出し直し） |
 | 自動（release.yml / screenshots） | 製品ページのスクリーンショットを作り直して差し替え |
 | 自動（release.yml / submit） | 処理待ち、バージョン作成、リリースノート、**審査への提出** |
 | 自動（tag-release.yml） | 配信を検知してタグと GitHub Release を作成 |
@@ -47,6 +51,13 @@ PR: develop → main ─ マージ ─▶ release.yml
 
 タグを最後に打つのは `docs/app-store.md` の方針どおり。リジェクトされた場合に
 「タグはあるのに世に出ていない」版を残さないため。
+
+### 同じ版を出し直す
+
+審査中の版を取り下げて別のビルドで出したいときは、`bundle/Info.plist` の
+`CFBundleVersion` を導出値（1.1.0 なら 10100）より大きく書いて（例 10101）
+`main` へマージする。release.yml の `withdraw` ジョブが審査中の提出を取り下げ、
+新しいビルドで絵の差し替えと提出をやり直す。
 
 ### 二重に出さないための歯止め
 
