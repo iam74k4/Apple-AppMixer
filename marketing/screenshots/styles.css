@@ -20,7 +20,9 @@
   --quaternary: rgba(255, 255, 255, 0.16);
   --separator: rgba(255, 255, 255, 0.13);
 
-  --popover: rgba(38, 38, 42, 0.86);
+  /* 実機は壁紙をにじませた半透明だが、絵では背景と溶けて「透けている」ように
+     見えるため、実機の見た目（暗い無地の壁紙の上）に近い不透明の色で描く。 */
+  --popover: rgb(42, 42, 46);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -50,7 +52,19 @@ html, body {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: linear-gradient(160deg, #0f1424 0%, #0a0d1b 55%, #070910 100%);
+  background: linear-gradient(160deg, #1b2342 0%, #121a36 45%, #0b1024 100%);
+}
+/* メニューバー。壁紙より一段明るい帯にして、ポップオーバーがここから
+   垂れているのが分かるようにする（macOS が暗い壁紙の上に描く帯と同じ）。 */
+.wallpaper::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.1);
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.14);
 }
 /* ポップオーバーの後ろの、ごく弱い青い光。面が平板になりすぎるのを防ぐ。 */
 .wallpaper .glow {
@@ -121,10 +135,10 @@ html, body {
   backdrop-filter: blur(40px) saturate(1.8);
   border-radius: 16px;
   box-shadow:
-    0 0 0 0.5px rgba(255, 255, 255, 0.16) inset,
-    0 0 0 0.5px rgba(0, 0, 0, 0.6),
-    0 18px 50px rgba(0, 0, 0, 0.55),
-    0 4px 14px rgba(0, 0, 0, 0.35);
+    0 0 0 0.5px rgba(255, 255, 255, 0.22) inset,
+    0 0 0 0.5px rgba(0, 0, 0, 0.7),
+    0 18px 50px rgba(0, 0, 0, 0.6),
+    0 4px 14px rgba(0, 0, 0, 0.4);
   color: var(--label);
   font-size: 13px;
   line-height: 1.2;
