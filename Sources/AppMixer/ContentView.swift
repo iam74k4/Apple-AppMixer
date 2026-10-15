@@ -58,6 +58,8 @@ struct ContentView: View {
         .frame(width: 420)
         // 他のメニューバーアプリと質感を揃える。単色の板より OS に馴染む。
         .background(.regularMaterial)
+        // 中身が短くなったらウインドウも縮める（WindowHeightSync を参照）。
+        .background(GeometryReader { geo in WindowHeightSync(contentHeight: geo.size.height) })
         .animation(.easeInOut(duration: 0.18), value: model.apps.count)
         .animation(.easeInOut(duration: 0.18), value: showSettings)
         .animation(.easeInOut(duration: 0.18), value: model.duckingReason)

@@ -143,12 +143,39 @@ jobs:
           security delete-keychain "$RUNNER_TEMP/build.keychain-db" 2>/dev/null || true
           rm -rf ~/.appstoreconnect/private_keys AppMixer.provisionprofile
 
+  # 同じ版がまだ審査中なら取り下げる（審査を取り下げて別のビルドで出し直す
+  # ための経路）。審査中でなければ何もしない。版が編集できない間は、後続の
+  # 絵の差し替えもビルドの紐づけも弾かれる。
+  withdraw:
+    needs: upload
+    if: needs.upload.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    environment: release
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 依存を入れる
+        run: pip install --quiet "pyjwt[crypto]"
+
+      - name: 審査中なら取り下げる
+        env:
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: python3 scripts/asc.py withdraw --version "${{ needs.upload.outputs.version }}"
+
   # 製品ページのスクリーンショットを、この版の版下から作り直して差し替える。
   # 絵はアプリの画面を写しているので、画面を変えた版では絵も変わる。
   # 人が App Store Connect へドラッグする手順を無くすためにここでやる。
-  # 失敗しても提出は止めない（古い絵のまま審査に出るだけで、ビルドには影響しない）。
+  # submit はこれが終わるのを待つ。入れ替えの途中（古い絵を消して新しい絵を
+  # 取り込んでいる間）は版が審査に出せる状態ではなく、提出が 409 で落ちる。
   screenshots:
-    needs: upload
+    needs: [upload, withdraw]
     if: needs.upload.outputs.release == 'true'
     runs-on: macos-latest
     environment: release
@@ -181,7 +208,7 @@ jobs:
   # ビルドの処理待ちは 10 分から 1 時間かかる。macOS ランナーは課金の倍率が
   # 高いので、Xcode の要らないここは Linux で待つ。
   submit:
-    needs: upload
+    needs: [upload, withdraw, screenshots]
     if: >-
       needs.upload.outputs.release == 'true'
       && vars.ASC_AUTO_SUBMIT != 'false'
