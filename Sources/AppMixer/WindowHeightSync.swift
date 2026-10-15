@@ -16,9 +16,10 @@ struct WindowHeightSync: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView { NSView() }
 
     func updateNSView(_ view: NSView, context: Context) {
-        // レイアウトの最中にウインドウを触ると再入になるため、一拍おく。
-        let height = contentHeight
-        DispatchQueue.main.async { Self.fit(view.window, toContentHeight: height) }
+        // 同じ更新の中で縮める。一拍おく（DispatchQueue.main.async）と、縮める前の
+        // 背の高いウインドウの真ん中に中身が描かれた 1 コマが画面に出て、
+        // ポップオーバーが一瞬消えたように見える。
+        Self.fit(view.window, toContentHeight: contentHeight)
     }
 
     static func fit(_ window: NSWindow?, toContentHeight height: CGFloat) {
