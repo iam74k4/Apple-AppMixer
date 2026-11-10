@@ -43,3 +43,4 @@ chore: set up develop branch and git conventions
 - `docs/app-store.md` — Mac App Store での配布とリリース手順
 - `docs/release-flow.md` — リリースフロー（main マージで App Store Connect へ自動アップロード）
 - `marketing/screenshots/README.md` — App Store のスクリーンショットの作り方と差し替え手順
+- `marketing/demo/README.md` — AstLog に載せるデモ動画（版下で再現した画面を動かしたもの）の作り方と台本の直し方

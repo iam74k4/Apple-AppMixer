@@ -27,3 +27,6 @@ bundle/icon/AppIcon.icns
 
 # App Store 用スクリーンショットの生成物（marketing/screenshots/render.sh）
 marketing/screenshots/build/
+
+# デモ動画の生成物（marketing/demo/render.sh）
+marketing/demo/build/

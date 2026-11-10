@@ -45,6 +45,8 @@ marketing/screenshots/render.sh 02-auto-ducking ja   # 1 枚だけ
 - 色はアプリごとに変えない。アプリごとに変えてよいのは差し色だけ（AppMixer は
   アプリのアクセントと同じ `#0A84FF`）
 
+共通の背景の絵そのものは `scripts/make-backdrop.swift` が描く（デモ動画が敷く。
+`marketing/demo/README.md`）。
 スクリーンショットは、上の色と日付を `styles.css` の `.wallpaper` と `app.js` の
 `menubar` に書いてある。**合わせてあるのは地・帯・線の色と、日付・電池だけ。**
 文言の位置、メニューバーの帯の高さとアイコンの大きさ、ポップオーバーの位置は
@@ -82,10 +84,15 @@ App Store 用に組んだままで、共通の配置（左に小見出し・見�
 | `styles.css` | 見た目（1440×900 で組み、2 倍で書き出す） |
 | `index.html` | 版下。`?shot=<id>&lang=<ja\|en>` で 1 枚を選ぶ |
 | `export_assets.swift` | SF Symbols とアプリアイコン（「システム音」の機種アイコンを含む）を PNG に書き出す |
+| `assets.sh` | 部品（上の PNG と、フッターに出す版）を `build/` に作る |
 | `render.sh` | 部品を作り、Chrome のヘッドレスで全枚数を書き出す |
 
 `build/` は生成物のため Git に入れない。他社アプリのアイコン（Chrome・Discord など）は
 この Mac にインストールされているものから毎回取り出す。
+
+デモ動画（`marketing/demo/`）も、ここの部品とポップオーバー（`app.js`・`styles.css`・
+`shots.js` の `APP` / `DEVICE`）をそのまま使う。`app.js` は `?mode=video` のとき、
+配置をせずに部品だけを渡す。ここを直したら、動画も作り直して確かめること。
 
 必要なもの: Google Chrome、Swift（Xcode の Command Line Tools）、`shots.js` で
 アイコンを使っているアプリ（Google Chrome・FaceTime・ミュージック）。

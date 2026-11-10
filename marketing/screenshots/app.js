@@ -1,6 +1,7 @@
 // shots.js の中身から 1 枚ぶんの画面を組み立てる。
 // ポップオーバーの構造は ContentView / AppRowView をそのまま写している。
 // アプリ側のレイアウトや文言を変えたら、ここも合わせること。
+// デモ動画の版下（../demo/video.html）も、ここのポップオーバーをそのまま使う（末尾の ?mode=video）。
 
 (() => {
   const params = new URLSearchParams(location.search);
@@ -423,6 +424,12 @@
     });
   }
 
-  // 画像とフォントの読み込みは、render.sh が Chrome に渡す --virtual-time-budget で待つ。
-  ({ side: layoutSide, compare: layoutCompare, grid: layoutGrid })[shot.layout]();
+  if (params.get("mode") === "video") {
+    // デモ動画の版下（../demo/video.html）には、配置をせず部品だけを渡す。
+    // ポップオーバーをここと別に組むと、アプリの画面を変えたときに片方だけ古くなる。
+    window.AM = { popover, sym, h, t };
+  } else {
+    // 画像とフォントの読み込みは、render.sh が Chrome に渡す --virtual-time-budget で待つ。
+    ({ side: layoutSide, compare: layoutCompare, grid: layoutGrid })[shot.layout]();
+  }
 })();
