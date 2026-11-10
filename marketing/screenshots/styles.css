@@ -47,15 +47,16 @@ html, body {
 
 /* ─── 背景 ─────────────────────────────────────────────────── */
 
-/* 無地に近い暗い面。文言とポップオーバーだけが目に入るようにする。 */
+/* 宣伝用の絵と動画に敷く、全アプリ共通の背景（README の「背景」）。地は墨の無地で、
+   グラデーションも光も持たない。色はアプリごとに変えない。 */
 .wallpaper {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: linear-gradient(160deg, #1b2342 0%, #121a36 45%, #0b1024 100%);
+  background: #222226;
 }
-/* メニューバー。壁紙より一段明るい帯にして、ポップオーバーがここから
-   垂れているのが分かるようにする（macOS が暗い壁紙の上に描く帯と同じ）。 */
+/* メニューバー。地より少し沈めた帯と、その下の細い線。ポップオーバーがここから
+   垂れているのが分かるように、帯として描く。 */
 .wallpaper::before {
   content: "";
   position: absolute;
@@ -63,18 +64,10 @@ html, body {
   right: 0;
   top: 0;
   height: 24px;
-  background: rgba(255, 255, 255, 0.1);
-  border-bottom: 0.5px solid rgba(255, 255, 255, 0.14);
-}
-/* ポップオーバーの後ろの、ごく弱い青い光。面が平板になりすぎるのを防ぐ。 */
-.wallpaper .glow {
-  position: absolute;
-  left: 640px;
-  top: -160px;
-  width: 1000px;
-  height: 760px;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(10, 132, 255, 0.22), rgba(10, 132, 255, 0));
+  background: #1a1a1d;
+  /* 線は帯の外（地の上）に引く。帯の色を線の下まで敷くと、共通の背景より暗い線になる。 */
+  background-clip: padding-box;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
 }
 
 /* ─── メニューバー ─────────────────────────────────────────── */

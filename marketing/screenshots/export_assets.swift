@@ -57,7 +57,7 @@ let symbols: [(name: String, weight: NSFont.Weight)] = [
     ("checkmark", .bold),
     // メニューバー
     ("wifi", .medium),
-    ("battery.75percent", .regular),
+    ("battery.100percent", .regular),
     ("switch.2", .medium),
     // 機能一覧
     ("slider.horizontal.3", .regular),
