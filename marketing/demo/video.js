@@ -3,19 +3,28 @@
 // window.renderAt(秒) がその時刻の 1 コマを組む。コマは render-frames.mjs が 0 秒から順に撮る
 // （指の跡とポインタの「最後の位置」は前のコマから引き継ぐので、途中の秒から始めない）。
 //
-// 見せる順: メニューバーのアイコンを押して開く → Google Chrome の音量を 100% から 30% へ →
+// 見せる順: （開いたところから）Google Chrome の音量を 100% から 30% へ →
 // システム音をミュート → FaceTime の通話で自動ダッキング → ミュージックの出力先を AirPods Pro へ →
 // ミュージックの左右バランス。1 場面に 1 機能。
 // 字幕は入れない。操作は、ポインタと右下のトラックパッドの図（指の位置。押している間は緑）で見せる。
 // 自動で起きるダッキングの間は、図から指を離す（人が操作していないことが分かるように）。
 //
+// 置き場所は実物（MenuBarExtra の .window）と App Store の画像と同じく、メニューバーのアイコンの真下に開き、
+// 画面の右端に収まるよう左へ押し戻す（../screenshots/app.js の layoutSide と同じ式）。倍率は、FaceTime の行と
+// 帯が増えても右下の図（下から 34・高さ 213）に重ならない 1.5。
+// 書き出すのは START からで、アイコンを押して開くところは台本にだけ残す: ページは動画の 0.1 秒目を表紙にするので、
+// 頭から書き出すと、表紙が何も無い暗い画面になる（2026-11-11 のレビュー）。
+//
 // 画面の状態は、アプリが実際にその状況で出す表示に合わせる（決まりは ../screenshots/shots.js の先頭）。
 // 動きは時刻だけから決める。乱数や実際の時計を使うと、撮り直すたびに違う動画になる。
 (() => {
   const AM = window.AM;
-  const Z = 1.75;
-  const POP = { centerX: 700, top: 56 };
-  const END = 15.8;
+  const Z = 1.5;
+  // メニューバーのアイコンの選択の角丸（背景の絵が中心 x=1066・幅 36 で描く）の左端と、メニューバーの下端（34 と線 1）
+  const ICON_LEFT = 1048;
+  const POP_TOP = 35 + 4;
+  const START = 1.62;
+  const END = 16.8;
   const canvas = document.getElementById("canvas");
 
   const el = (tag, cls, parent) => {
@@ -50,7 +59,8 @@
     const chromeVolume = 1 - 0.7 * ramp(t, 2.6, 4.0);
     const routed = t >= 11.3;
     const menuOpen = within(t, 10.0, 11.3);
-    const balance = -0.35 * ramp(t, 12.9, 14.0);
+    // 区切りのつまみは細い（3pt）ので、はっきり分かるところまで寄せる
+    const balance = -0.6 * ramp(t, 12.9, 14.0);
     const rows = [];
     if (call) rows.push({ key: "facetime", ...APP.facetime, volume: 1, level: 0.5 * wave(t, 0.4) });
     rows.push({
@@ -79,16 +89,17 @@
     { a: 0.3, b: 1.1, from: ["at", 930, 430], to: ["icon"] },
     { a: 1.7, b: 2.4, from: ["icon"], to: ["knob", "chrome"] },
     { a: 4.5, b: 5.2, from: ["knob", "chrome"], to: ["mute", "system"] },
-    { a: 5.7, b: 6.3, from: ["mute", "system"], to: ["at", 1130, 500] },
-    { a: 9.1, b: 9.9, from: ["at", 1130, 500], to: ["output", "music"] },
+    { a: 5.7, b: 6.3, from: ["mute", "system"], to: ["at", 620, 470] },
+    { a: 9.1, b: 9.9, from: ["at", 620, 470], to: ["output", "music"] },
     { a: 10.3, b: 11.0, from: ["output", "music"], to: ["item", "music", 1] },
     { a: 12.0, b: 12.7, from: ["last"], to: ["balance", "music"] },
-    { a: 14.5, b: 15.2, from: ["balance", "music"], to: ["at", 1130, 500] },
+    // つまみから離れて、片側に寄ったつまみ（青）を見せる
+    { a: 14.5, b: 15.2, from: ["balance", "music"], to: ["at", 620, 470] },
   ];
   // 押したまま動かす区間（ドラッグ）、押した瞬間、指がトラックパッドに触れている区間
   const presses = [[2.5, 4.1], [12.8, 14.1]];
   const clicks = [1.2, 5.4, 10.0, 11.3];
-  const touching = [[0.3, 1.55], [1.7, 4.3], [4.5, 6.3], [9.1, 11.65], [12.0, 14.3], [14.5, 15.2]];
+  const touching = [[0.3, START], [1.7, 4.3], [4.5, 6.3], [9.1, 11.65], [12.0, 14.3], [14.5, 15.2]];
 
   let keys = [];
   let last = { x: 930, y: 430 };
@@ -126,19 +137,25 @@
   // ─── 1 コマを組む ────────────────────────────────────────
 
   const history = [];
-  window.renderAt = (t) => {
+  window.renderAt = (videoTime) => {
+    const t = START + videoTime;
     const m = model(t);
     keys = m.keys;
     canvas.dataset.open = m.open > 0 ? "1" : "0";
     stage.replaceChildren();
     if (m.open > 0) {
       const wrap = el("div", "popwrap", stage);
-      wrap.style.left = `${POP.centerX - (420 * Z) / 2}px`;
-      wrap.style.top = `${POP.top}px`;
+      wrap.style.left = `${Math.min(ICON_LEFT - 8 * Z, 1440 - 56 - 420 * Z)}px`;
+      wrap.style.top = `${POP_TOP}px`;
       wrap.style.opacity = m.open;
       wrap.style.transform = `scale(${0.96 + 0.04 * m.open})`;
       const pop = AM.popover(m.popover, Z);
       wrap.append(pop);
+      // 出力先のメニューは、macOS と同じく画面の内側へ押し戻す（../screenshots/app.js の layoutSide と同じ）
+      for (const menu of pop.querySelectorAll(".menu")) {
+        const over = menu.getBoundingClientRect().right - (1440 - 24);
+        if (over > 0) menu.style.left = `${-6 - over / Z}px`;
+      }
       pop.querySelectorAll(".menu .mi").forEach((item, index) => {
         item.classList.toggle("hl", index === m.menuHover);
         const tick = item.querySelector(".tick");
@@ -161,7 +178,7 @@
 
     // 右下の図: ポインタの位置をトラックパッドの上の指の位置に写す
     const touch = touching.some(([a, b]) => within(t, a, b));
-    const fx = 14 + clamp((p.x - 250) / 900) * (320 - 28);
+    const fx = 14 + clamp((p.x - 560) / 860) * (320 - 28);
     const fy = 14 + clamp(p.y / 720) * (213 - 28);
     finger.style.opacity = touch ? 1 : 0;
     finger.style.transform = `translate(${fx - 12.5}px, ${fy - 12.5}px)`;
@@ -181,6 +198,6 @@
       dot.style.transform = mark ? `translate(${mark.x - d / 2}px, ${mark.y - d / 2}px)` : "";
     });
   };
-  window.videoDuration = END;
+  window.videoDuration = END - START;
   window.renderAt(0);
 })();
