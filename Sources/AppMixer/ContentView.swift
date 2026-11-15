@@ -1,17 +1,9 @@
 import AppKit
 import SwiftUI
-import Combine
 
 struct ContentView: View {
 
     @ObservedObject var model: MixerModel
-
-    // ビューが表示されている間だけ動くタイマー。onAppear/onDisappear は
-    // MenuBarExtra(.window) では期待どおりに来ないことがあるため、
-    // 表示に紐づくこちらでメーター更新を駆動する。
-    // @State で保持する。let にすると body 再評価のたびに作り直され、
-    // カウントダウンが振り出しに戻って更新間隔が乱れる。
-    @State private var ticker = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
 
     /// 設定セクションを開いているか。
     @State private var showSettings = false
@@ -63,9 +55,14 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.18), value: model.apps.count)
         .animation(.easeInOut(duration: 0.18), value: showSettings)
         .animation(.easeInOut(duration: 0.18), value: model.duckingReason)
-        .onAppear { model.onAppear() }
-        .onDisappear { model.onDisappear() }
-        .onReceive(ticker) { _ in model.tick() }
+        // 開閉はウインドウが実際に画面に出ているかで判断する。onAppear /
+        // onDisappear は MenuBarExtra(.window) では来ないことがあり、
+        // ビューに置いたタイマーは閉じても止まらない（PanelVisibility を参照）。
+        // メーター更新のタイマーは、表示中だけモデルが回す。
+        .background(PanelVisibilityReader(
+            onChange: { model.panelVisibilityChanged($0) },
+            onProbe: { model.panelVisibilityProbe = $0 }
+        ))
     }
 
     // MARK: - Header

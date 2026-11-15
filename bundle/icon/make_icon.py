@@ -36,7 +36,9 @@ FADERS = [0.72, 0.38, 0.58]
 # ごく薄い縁を足して形が分かるようにする。暗背景版は落ち影だけで足りる。
 PALETTES = {
     "dark": dict(
-        bg_top="#3A3A3C", bg_bottom="#0B0B0D",
+        # ポートフォリオ（astlog.dev）に載せている版に合わせ、黒に近づける。
+        # 上はダーク外観のいちばん奥の灰（systemGray6）、下は黒。
+        bg_top="#1C1C1E", bg_bottom="#000000",
         track="#FFFFFF", track_opacity=0.16,
         accent="#0A84FF",              # ダーク外観のシステムブルー
         level_opacity=0.55,

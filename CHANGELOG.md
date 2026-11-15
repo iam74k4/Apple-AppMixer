@@ -3,9 +3,16 @@
 このファイルの書式は [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) に、
 バージョン番号は [セマンティック バージョニング](https://semver.org/lang/ja/) に従います。
 
+英語のページの「このバージョンでの変更点」は `CHANGELOG.en.md` に、同じ中身で書きます。
+
 ## [未リリース]
 
-## [1.1.0] - 未リリース
+## [1.2.0] - 2026-11-16
+
+・画面を閉じている間は、音量を変えていないアプリの音に手を加えないようにしました。ミュージックのドルビーアトモスの曲で雑音が混じることや、電池の減りが抑えられます。
+・アプリのアイコンを、黒を基調にした新しいデザインにしました。
+
+## [1.1.0] - 2026-10-20
 
 ### 追加
 - 「システム音」の行。通知音・警告音・効果音など、どのアプリにも属さない音を
@@ -54,8 +61,9 @@
 - 設定を反映できなかったとき、その行に印を出す
   （出力先の切り替えに追従できず音が止まった場合は復旧を試み続ける）
 
-[未リリース]: https://github.com/iam74k4/Apple-AppMixer/compare/main...HEAD
-[1.1.0]: https://github.com/iam74k4/Apple-AppMixer/compare/v1.0.2...HEAD
+[未リリース]: https://github.com/iam74k4/Apple-AppMixer/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/iam74k4/Apple-AppMixer/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/iam74k4/Apple-AppMixer/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/iam74k4/Apple-AppMixer/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/iam74k4/Apple-AppMixer/compare/v1.0...v1.0.1
 [1.0]: https://github.com/iam74k4/Apple-AppMixer/releases/tag/v1.0

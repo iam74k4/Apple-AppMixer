@@ -243,10 +243,16 @@ jobs:
       - name: リリースノートを CHANGELOG から取り出す
         run: |
           ./scripts/changelog-section.sh "${{ needs.upload.outputs.version }}" > /tmp/notes.md
+          ./scripts/changelog-section.sh "${{ needs.upload.outputs.version }}" CHANGELOG.en.md > /tmp/notes-en.md
           if [ ! -s /tmp/notes.md ]; then
             echo "warning: CHANGELOG.md に [${{ needs.upload.outputs.version }}] の節がありません。"
           fi
+          if [ ! -s /tmp/notes-en.md ]; then
+            echo "warning: CHANGELOG.en.md に [${{ needs.upload.outputs.version }}] の節がありません。"
+          fi
           cat /tmp/notes.md
+          echo "---"
+          cat /tmp/notes-en.md
 
       - name: バージョンを用意して審査に出す
         env:
@@ -258,5 +264,6 @@ jobs:
             --version "${{ needs.upload.outputs.version }}" \
             --build-id "${{ steps.build.outputs.id }}" \
             --notes-file /tmp/notes.md \
+            --notes-en-file /tmp/notes-en.md \
             --release-type "${{ vars.ASC_RELEASE_TYPE || 'AFTER_APPROVAL' }}"
           echo "審査に出しました。通れば自動で配信され、tag-release がタグを打ちます。"
