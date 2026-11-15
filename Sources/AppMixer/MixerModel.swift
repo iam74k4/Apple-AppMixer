@@ -189,6 +189,7 @@ final class MixerModel: ObservableObject {
     deinit {
         idleWatchdog?.invalidate()
         duckTimer?.invalidate()
+        meterTimer?.invalidate()
         if let terminationObserver {
             NotificationCenter.default.removeObserver(terminationObserver)
         }
@@ -207,7 +208,55 @@ final class MixerModel: ObservableObject {
 
     // MARK: - Lifecycle (popover open/close)
 
-    func onAppear() {
+    /// メーター更新を回すタイマー。ポップオーバーが画面に出ている間だけ動かす。
+    ///
+    /// 以前はビューに Timer.publish を置いていたが、MenuBarExtra(.window) は
+    /// 閉じてもビューを捨てないことがあり、そのタイマーは閉じたあとも回り
+    /// 続けた。tick が続く限り「表示中」と見なされ、メーター用のタップが
+    /// 外れず、閉じている間も鳴り始めたアプリに張り足していた。
+    private var meterTimer: Timer?
+
+    /// ポップオーバーのウインドウがいま画面に出ているかを確かめる手段。
+    /// 開閉の通知を取りこぼしても、tick のたびにこれで確かめ直す。
+    var panelVisibilityProbe: (() -> Bool)?
+
+    /// ポップオーバーの開閉の判断。通知と tick の両方から同じものに流し込み、
+    /// 開いた／閉じたの判断を一か所にまとめる。
+    private var panelTracker = PanelVisibility.Tracker()
+
+    /// ポップオーバーのウインドウの見え方を受け取る。同じ値が何度来てもよい。
+    ///
+    /// 見えなくなってから閉じたと決まるまでの見極めは tick が続ける。
+    /// meterTimer は閉じたと決まるまで止めないので、確かめ直しは別に仕掛けない。
+    func panelVisibilityChanged(_ visible: Bool) {
+        switch panelTracker.update(visible: visible, now: Date()) {
+        case .opened:
+            startMeterTimer()
+            onAppear()
+        case .closed:
+            stopMeterTimer()
+            onDisappear()
+        case nil:
+            break
+        }
+    }
+
+    private func startMeterTimer() {
+        guard meterTimer == nil else { return }
+        let timer = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.tick() }
+        }
+        // スライダーを掴んでいる間（イベント追跡中）も回す。
+        RunLoop.main.add(timer, forMode: .common)
+        meterTimer = timer
+    }
+
+    private func stopMeterTimer() {
+        meterTimer?.invalidate()
+        meterTimer = nil
+    }
+
+    private func onAppear() {
         // 解放中に開き直されたら中断する。
         controller.cancelMeteringRelease()
         meteringFailures.removeAll()
@@ -218,21 +267,24 @@ final class MixerModel: ObservableObject {
         refresh()
     }
 
-    /// 表示中に一定間隔で呼ばれる（駆動はビュー側のタイマー）。
-    func tick() {
-        // onAppear が来ないまま再表示されることがある（ContentView 冒頭の
-        // コメント参照）。閉じの検知を idleWatchdog が担っているのと対で、
-        // 開きの検知はここが担う: tick が途絶えたあとの最初の tick を
-        // 開き直しとみなし、onAppear と同じ読み直しを通す。これが無いと、
-        // 閉じている間に変わったデバイス名やメニューが古いまま表示され続ける。
+    /// 表示中に一定間隔で呼ばれる（駆動は meterTimer）。
+    private func tick() {
+        // 閉じた通知を取りこぼしていたら、ここで気づいて止める。回し続けると、
+        // 閉じている間もメーター用のタップを張り足してしまう。
+        panelVisibilityChanged(panelVisibilityProbe?() ?? false)
+        guard panelTracker.isShowing, !panelTracker.isPendingClose else { return }
+        // メインスレッドが 2 秒以上詰まると、idleWatchdog が閉じたものと見なして
+        // lastTick を下ろす。そのあと表示中のまま tick が戻ってきたら、
+        // 開き直しとみなして onAppear と同じ読み直しを通す。これが無いと、
+        // その間に変わったデバイス名やメニューが古いまま表示され続ける。
         let reopened = lastTick == nil
         lastTick = Date()
         if reopened { refresh() }
         tickMeters()
     }
 
-    /// 表示が終わったのに onDisappear が来ないことがあるため、
-    /// tick が途絶えたら（＝閉じられたら）メーター用タップを解放する。
+    /// 閉じたことを取りこぼした場合の保険。tick が途絶えたら（＝閉じられたら）
+    /// メーター用タップを解放する。
     private func startIdleWatchdog() {
         let timer = Timer(timeInterval: 3.0, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.releaseMetersIfIdle() }
@@ -257,9 +309,8 @@ final class MixerModel: ObservableObject {
         }
     }
 
-    func onDisappear() {
-        // 来ないことがある通知だが、来たなら閉じたと確定している。
-        // idleWatchdog の 2 秒を待たずに「表示中」を下ろす。
+    private func onDisappear() {
+        // 閉じたと確定している。idleWatchdog の 2 秒を待たずに「表示中」を下ろす。
         lastTick = nil
         // 表示していない間は、メーター用に張っただけのタップを解放する。
         // 音量を変えたアプリのタップはそのまま維持する。
