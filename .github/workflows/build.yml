@@ -76,3 +76,9 @@ jobs:
             echo "error: バージョンが食い違っています。どちらかを合わせてください。"
             exit 1
           fi
+          # 英語のページのリリースノートは CHANGELOG.en.md から入れる。節が無いまま
+          # 出すと、英語のページの「このバージョンでの変更点」が空のまま止まる。
+          if [ -z "$(./scripts/changelog-section.sh "$plist" CHANGELOG.en.md)" ]; then
+            echo "error: CHANGELOG.en.md に [$plist] の節がありません。英語で同じ中身を書いてください。"
+            exit 1
+          fi

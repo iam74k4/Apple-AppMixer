@@ -170,11 +170,11 @@ Environment が解決される前に評価される。Environment 側に置く�
      （ビルド番号は Makefile が導出するので触らない）
    - `CHANGELOG.md` の「未リリース」を新しいバージョン見出しに移し、日付を入れる。
      **この節がそのまま App Store のリリースノートと GitHub Release の本文になる**
-   - CHANGELOG は日本語なので、英語のページのリリースノートは App Store Connect で
-     先にそのバージョンを作り、英語（アメリカ・カナダ）の「このバージョンの最新情報」
-     に書いておく。CI は空のロケールにだけ CHANGELOG を入れ、書いてあるものは
-     上書きしない。スクリーンショットを差し替えるときも同じく先にバージョンを作る
-     （`marketing/screenshots/README.md`）
+   - 英語のページのリリースノートは、`CHANGELOG.en.md` に同じバージョンの節を
+     英語で書く。CI は英語のロケール（en-US・en-CA など）にこの節を、それ以外には
+     `CHANGELOG.md` の節を入れる。英語の節が無くても日本語では代用しない
+     （英語のページに日本語が出るため）。build.yml が節の有無を確かめて止める。
+     App Store Connect で先に書いておいたロケールは上書きしない
    - `make run-sandboxed` でサンドボックス動作を確認する（`docs/app-store.md` 参照）
 2. **PR: develop → main を作ってマージする**
 
@@ -214,6 +214,8 @@ fastlane を持ち込むと metadata ディレクトリ一式をリポジトリ�
 
 `CHANGELOG.md` から `## [X.Y.Z]` の節だけを取り出す。App Store のリリースノートと
 GitHub Release の本文の両方がこれを使う。二か所で別々に書くと食い違うため。
+2 つ目の引数にファイルを渡すと、そのファイルから取り出す（英語のページ用の
+`CHANGELOG.en.md`）。
 
 ### cron の注意
 

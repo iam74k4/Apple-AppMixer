@@ -87,6 +87,7 @@ build:
 # ゲインとバランス、保存形式）を Tests/AppMixerTests で試す。
 test:
 	swift test
+	python3 -m unittest discover -s scripts -p 'test_*.py'
 
 # PNG 一式（bundle/icon/AppIcon.iconset）から .icns を作る。iconutil は macOS 専用。
 icon:
