@@ -236,13 +236,24 @@ def find_or_create_version(app, version_string, release_type):
     return created["data"]["id"]
 
 
-def set_whats_new(version_id, notes):
+def notes_for_locale(locale, notes, notes_en):
+    """そのロケールに入れるリリースノートを選ぶ。入れるものが無ければ None。
+
+    英語のページ（en-US・en-CA など）には CHANGELOG.en.md の節を入れる。
+    英語が無いときに日本語で代用すると、英語のページに日本語の文が出るので、
+    代用せずに None を返す。それ以外のロケールには CHANGELOG.md（日本語）を入れる。
+    """
+    if (locale or "").startswith("en"):
+        return notes_en or None
+    return notes or None
+
+
+def set_whats_new(version_id, notes, notes_en=None):
     """「このバージョンでの変更点」を、まだ空のロケールに入れる。
 
-    CHANGELOG は日本語なので、そのまま全ロケールへ入れると英語のページにも
-    日本語のリリースノートが出る。App Store Connect で先に書いておいた
-    ロケール（英語など）は上書きしない。新しいバージョンは空で作られるため、
-    何も書いていなければ従来どおり全ロケールに入る。
+    中身はロケールごとに notes_for_locale で選ぶ。App Store Connect で先に
+    書いておいたロケールは上書きしない。新しいバージョンは空で作られるため、
+    何も書いていなければ CHANGELOG の節がそのまま入る。
 
     アプリの最初のバージョンには変更点の欄が無く、Apple は 409 を返す。
     それは失敗ではないので警告にとどめる。
@@ -255,6 +266,13 @@ def set_whats_new(version_id, notes):
         if (localization["attributes"].get("whatsNew") or "").strip():
             log(f"{locale} は App Store Connect で書かれているので、そのままにします。")
             continue
+        notes_here = notes_for_locale(locale, notes, notes_en)
+        if notes_here is None:
+            log(
+                f"warning: {locale} に入れるリリースノートがありません"
+                "（英語は CHANGELOG.en.md）。App Store Connect で入れてください。"
+            )
+            continue
         try:
             api(
                 "PATCH",
@@ -263,7 +281,7 @@ def set_whats_new(version_id, notes):
                     "data": {
                         "type": "appStoreVersionLocalizations",
                         "id": localization["id"],
-                        "attributes": {"whatsNew": notes},
+                        "attributes": {"whatsNew": notes_here},
                     }
                 },
             )
@@ -355,17 +373,25 @@ def submit_for_review(app, version_id):
     log("審査に提出しました。")
 
 
+def read_notes(path):
+    """リリースノートのファイルを読む。指定が無いか中身が空なら None。"""
+    if not path:
+        return None
+    with open(path, encoding="utf-8") as handle:
+        return handle.read().strip() or None
+
+
 def cmd_submit(args):
     app = app_id()
     version_id = find_or_create_version(app, args.version, args.release_type)
     attach_build(version_id, args.build_id)
 
-    if args.notes_file:
-        notes = open(args.notes_file, encoding="utf-8").read().strip()
-        if notes:
-            set_whats_new(version_id, notes)
-        else:
-            log("warning: リリースノートが空でした。App Store Connect で入れてください。")
+    notes = read_notes(args.notes_file)
+    notes_en = read_notes(args.notes_en_file)
+    if notes or notes_en:
+        set_whats_new(version_id, notes, notes_en)
+    elif args.notes_file or args.notes_en_file:
+        log("warning: リリースノートが空でした。App Store Connect で入れてください。")
 
     if args.no_submit:
         log("--no-submit のため、審査には出しません。")
@@ -622,7 +648,10 @@ def main():
     submit = sub.add_parser("submit", help="ビルドを紐づけて審査に出す")
     submit.add_argument("--version", required=True)
     submit.add_argument("--build-id", required=True)
-    submit.add_argument("--notes-file")
+    submit.add_argument("--notes-file", help="日本語のリリースノート（CHANGELOG.md の節）")
+    submit.add_argument(
+        "--notes-en-file", help="英語のページに入れるリリースノート（CHANGELOG.en.md の節）"
+    )
     submit.add_argument("--release-type", default="AFTER_APPROVAL")
     submit.add_argument(
         "--no-submit",
