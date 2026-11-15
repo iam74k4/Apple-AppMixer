@@ -372,6 +372,7 @@ final class MixerController {
         if let tap = taps.removeValue(forKey: id) {
             tap.invalidate()
             retireIfNeeded(tap)
+            AppLog.audio.info("Released metering tap for \(id, privacy: .private)")
         }
         // タップを畳んだアプリは通常経路へ戻る。「追従できず無音」ではなく
         // なったので印を外す。残すと、鳴っているのに赤い印が出たままになる。
