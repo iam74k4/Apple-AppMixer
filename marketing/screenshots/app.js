@@ -273,7 +273,7 @@
 
   // ─── 背景 ─────────────────────────────────────────────────
 
-  /** 全アプリ共通の背景。墨の無地と、メニューバーの帯（styles.css の .wallpaper）。 */
+  /** 全アプリ共通の背景。真っ黒の無地と、メニューバーの帯（styles.css の .wallpaper）。 */
   function wallpaper() {
     return h("div", { class: "wallpaper" });
   }

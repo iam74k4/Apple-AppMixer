@@ -1,9 +1,9 @@
-// 宣伝用のデモ動画・画像に敷く共通の背景（墨の無地とメニューバー）を PNG に書き出す。全アプリでこの1つを使う。
-// 地は AstLog の墨（#222226。Web-AstLog の public/app.css の --ink、ロゴの素材の地 LOGO_COLORS.ground と同じ値）の無地。
-// グラデーションも飾りも持たない（2026-11-11 に所有者が「シンプルに黒背景」と決めた。前は #1F1F21 → #0E0E0F の灰のグラデーション）。
-// メニューバーの寸法と並びは前の背景と同じ。変えたのは地と帯の色だけ。
+// 宣伝用のデモ動画・画像に敷く共通の背景（真っ黒の無地とメニューバー）を PNG に書き出す。全アプリでこの1つを使う。
+// 地は真っ黒（#000000）の無地。2026-11-27 に所有者が「AstLog の色に合うように背景を真っ黒に」と決めた（その前は AstLog の墨 #222226 の無地、
+// さらに前は #1F1F21 → #0E0E0F の灰のグラデーション）。グラデーションも飾りも持たない。
+// メニューバーの寸法と並びは前の背景と同じ。帯も地と同じ黒にし、下の白 6% の線で分ける（墨のときの帯は #1A1A1D）。
 //
-// 寸法は 1440×900 の絵を基準にし、幅に合わせて拡大する（上端にそろえる。16:10 より縦長の画面では、下も同じ墨）。
+// 寸法は 1440×900 の絵を基準にし、幅に合わせて拡大する（上端にそろえる。16:10 より縦長の画面では、下も同じ黒）。
 // 使い方: swift make-backdrop.swift <out.png> [<幅 px> <高さ px>] [--status-symbol <SF Symbol の名前> | --status-image <テンプレート画像> | --status-nonet] [--status-selected] [--no-menubar]
 //   幅と高さを省くと、いまのメインの画面の大きさ（ピクセル）。デモ動画にはこれを使う。画像の合成（1440×900 の @2x）には 2880 1800
 //   --status-symbol: アプリのメニューバーのアイコンが SF Symbols のとき（例: AppMixer は slider.vertical.3）
@@ -12,13 +12,14 @@
 //   --status-selected: アイコンの後ろに、メニューを開いているときの明るい角丸を敷く（ポップオーバーを開いた絵のとき）
 //   --no-menubar: メニューバーを描かない（iPhone のアプリ。端末の外には地だけを置く）
 //   アイコンを指定しなければ、アプリのアイコンは描かない
+//   --clock: メニューバーの右端の日付（既定「11月7日(土) 9:41」）。英語の画面の動画・画像では「Sat Nov 7 9:41 AM」。位置・字・色は同じ
 import AppKit
 import CoreText
 import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-let usage = "使い方: swift make-backdrop.swift <out.png> [<幅 px> <高さ px>] [--status-symbol <名前> | --status-image <画像> | --status-nonet] [--status-selected] [--no-menubar]\n"
+let usage = "使い方: swift make-backdrop.swift <out.png> [<幅 px> <高さ px>] [--status-symbol <名前> | --status-image <画像> | --status-nonet] [--status-selected] [--no-menubar] [--clock <日付の文字>]\n"
 func fail(_ message: String) -> Never { FileHandle.standardError.write(Data((message + "\n").utf8)); exit(2) }
 var positional: [String] = []
 var statusSymbol: String?
@@ -26,6 +27,7 @@ var statusImage: String?
 var statusNonet = false
 var statusSelected = false
 var menubar = true
+var clock = "11月7日(土) 9:41"
 var rest = Array(CommandLine.arguments.dropFirst())[...]
 while let arg = rest.popFirst() {
     switch arg {
@@ -34,6 +36,7 @@ while let arg = rest.popFirst() {
     case "--status-nonet": statusNonet = true
     case "--status-selected": statusSelected = true
     case "--no-menubar": menubar = false
+    case "--clock": guard let v = rest.popFirst(), !v.isEmpty else { fail(usage) }; clock = v
     case "--no-status-icon": break
     default: positional.append(arg)
     }
@@ -59,8 +62,8 @@ ctx.scaleBy(x: s, y: s)
 ctx.interpolationQuality = .high
 func rgb(_ hex: Int, _ a: CGFloat = 1) -> CGColor { CGColor(srgbRed: CGFloat((hex >> 16) & 255) / 255, green: CGFloat((hex >> 8) & 255) / 255, blue: CGFloat(hex & 255) / 255, alpha: a) }
 
-// 地: 墨の無地（AstLog の --ink）
-ctx.setFillColor(rgb(0x222226)); ctx.fill(CGRect(x: 0, y: H - CGFloat(size.height) / s, width: W, height: CGFloat(size.height) / s))
+// 地: 真っ黒の無地（#000000）
+ctx.setFillColor(rgb(0x000000)); ctx.fill(CGRect(x: 0, y: H - CGFloat(size.height) / s, width: W, height: CGFloat(size.height) / s))
 
 func text(_ string: String, font: CTFont, color: CGColor, rightEdge x: CGFloat, baseline y: CGFloat) {
     let attr = [kCTFontAttributeName: font, kCTForegroundColorAttributeName: color] as CFDictionary
@@ -89,12 +92,12 @@ func drawSymbol(_ name: String, center: CGPoint, size points: CGFloat, weight: N
 }
 
 if menubar {
-    // メニューバー（高さ 34。墨を少し沈めた帯 #1A1A1D。下に白 6% の 1pt の線）
-    ctx.setFillColor(rgb(0x1A1A1D)); ctx.fill(CGRect(x: 0, y: H - 34, width: W, height: 34))
+    // メニューバー（高さ 34。帯は地と同じ黒 #000000。下に白 6% の 1pt の線で地と分ける）
+    ctx.setFillColor(rgb(0x000000)); ctx.fill(CGRect(x: 0, y: H - 34, width: W, height: 34))
     ctx.setFillColor(rgb(0xFFFFFF, 0.06)); ctx.fill(CGRect(x: 0, y: H - 35, width: W, height: 1))
     // 右側（右から: 日付・コントロールセンター・Wi-Fi・電池・アプリのアイコン）
     let barY = H - 17
-    text("11月7日(土) 9:41", font: CTFontCreateUIFontForLanguage(.system, 13, nil)!, color: rgb(0xF2F2F2), rightEdge: 1416, baseline: barY - 5)
+    text(clock, font: CTFontCreateUIFontForLanguage(.system, 13, nil)!, color: rgb(0xF2F2F2), rightEdge: 1416, baseline: barY - 5)
     drawSymbol("switch.2", center: CGPoint(x: 1222, y: barY), size: 13)
     drawSymbol("wifi", center: CGPoint(x: 1172, y: barY), size: 13)
     drawSymbol("battery.100percent", center: CGPoint(x: 1116, y: barY), size: 15, weight: .regular)
