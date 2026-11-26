@@ -8,8 +8,9 @@ make demo-video
 marketing/demo/render.sh
 ```
 
-`marketing/demo/build/appmixer-demo.mp4` に、1440×900（16:10）・30fps・H.264・音なしで出る。
-長さは 15.2 秒（455 コマ）。
+`marketing/demo/build/appmixer-demo.mp4` に、1440×900（16:10）・60fps・H.264・音なしで出る。
+長さは 15.2 秒（910 コマ）。60fps なのは、ポインタが速く動く所で跳ばないように（30fps では
+1コマに 25px ほど跳び、カクついて見えた。2026-11-27）。
 
 ## アプリの実物の収録ではない
 

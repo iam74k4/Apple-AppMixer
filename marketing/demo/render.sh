@@ -3,7 +3,7 @@
 #
 #   marketing/demo/render.sh
 #
-# 出力: marketing/demo/build/appmixer-demo.mp4（1440×900・30fps・H.264・音なし）
+# 出力: marketing/demo/build/appmixer-demo.mp4（1440×900・60fps・H.264・音なし）
 # 必要なもの: Google Chrome、Swift（Xcode の Command Line Tools）、Node.js 22 以降、
 #             アイコンを借りるアプリ（Google Chrome・FaceTime・ミュージック）
 set -euo pipefail
@@ -35,13 +35,15 @@ mkdir -p build
 swift "$ROOT/scripts/make-backdrop.swift" build/backdrop-idle@2x.png 2880 1800 --status-symbol slider.vertical.3
 swift "$ROOT/scripts/make-backdrop.swift" build/backdrop-open@2x.png 2880 1800 --status-symbol slider.vertical.3 --status-selected
 
-# 3. コマ。台本（video.js）の 0 秒から終わりまでを、1/30 秒ずつ PNG に撮る。
-node render-frames.mjs "file://$PWD/video.html?mode=video&lang=ja" build/frames 30
+# 3. コマ。台本（video.js）の 0 秒から終わりまでを、1/60 秒ずつ PNG に撮る。
+#    60fps にするのは、ポインタが速く動く所で跳ばないように（30fps では1コマに 25px ほど跳び、カクついて見えた）。
+#    ポインタも図の指も時刻の式で決まるので、コマ数を変えても動きの速さと長さは変わらない。
+node render-frames.mjs "file://$PWD/video.html?mode=video&lang=ja" build/frames 60
 
-# 4. MP4。2.5Mbps は、AstLog に載せた動画と同じ（16 秒で 1MB に届かない）。
+# 4. MP4。60fps でも 6Mbps なら 16 秒で 1MB ほどで、AstLog の上限（10MB）に十分収まる。
 #    vidtool.swift は共通の道具の写しなので、警告が出ても、ここでは直さずに黙らせる。
 swiftc -O -suppress-warnings "$ROOT/scripts/vidtool.swift" -o build/vidtool
-build/vidtool encode build/frames build/appmixer-demo.mp4 30 2500000
+build/vidtool encode build/frames build/appmixer-demo.mp4 60 6000000
 
 # AstLog が受け取る動画は 10MB まで。台本を延ばしたりビットレートを上げたりして
 # 超えたら、載せる段になって弾かれる前にここで止める。
