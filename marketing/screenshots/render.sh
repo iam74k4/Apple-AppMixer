@@ -11,7 +11,6 @@
 set -euo pipefail
 
 cd "$(dirname "$0")"
-ROOT="$(cd ../.. && pwd)"
 CHROME="${CHROME:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}"
 
 if [ ! -x "$CHROME" ]; then
@@ -19,13 +18,8 @@ if [ ! -x "$CHROME" ]; then
   exit 1
 fi
 
-mkdir -p build
-swift export_assets.swift build/assets
-cp "$ROOT/bundle/icon/AppIcon.iconset/icon_512x512@2x.png" build/assets/icons/appmixer.png
-
-# フッターに出る版はアプリと同じく Info.plist から取る。
-version="$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$ROOT/bundle/Info.plist")"
-echo "window.META = { version: \"$version\" };" > build/meta.js
+# 部品（SF Symbols・アプリのアイコン・版）。デモ動画（../demo/render.sh）と同じもの。
+./assets.sh
 
 if [ $# -ge 1 ]; then
   ids="$1"

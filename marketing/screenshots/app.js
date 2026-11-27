@@ -1,6 +1,7 @@
 // shots.js の中身から 1 枚ぶんの画面を組み立てる。
 // ポップオーバーの構造は ContentView / AppRowView をそのまま写している。
 // アプリ側のレイアウトや文言を変えたら、ここも合わせること。
+// デモ動画の版下（../demo/video.html）も、ここのポップオーバーをそのまま使う（末尾の ?mode=video）。
 
 (() => {
   const params = new URLSearchParams(location.search);
@@ -257,11 +258,12 @@
   // ─── メニューバー ────────────────────────────────────────
 
   function menubar(z) {
-    const clock = lang === "ja" ? "9月29日(月)  9:41" : "Mon Sep 29  9:41 AM";
+    // 日付と電池は、全アプリ共通の背景（README の「背景」）と同じにする。
+    const clock = lang === "ja" ? "11月7日(土)  9:41" : "Sat Nov 7  9:41 AM";
     const appmixer = h("span", { class: "item selected" }, sym("slider.vertical.3", 14));
     const bar = h("div", { class: "menubar", style: { "--z": z } },
       appmixer,
-      h("span", { class: "item" }, sym("battery.75percent", 13)),
+      h("span", { class: "item" }, sym("battery.100percent", 13)),
       h("span", { class: "item" }, sym("wifi", 13)),
       h("span", { class: "item" }, sym("switch.2", 13)),
       h("span", { class: "item", text: clock }),
@@ -271,9 +273,9 @@
 
   // ─── 背景 ─────────────────────────────────────────────────
 
-  /** 無地に近い暗い面。ポップオーバーの後ろにだけ、ごく弱い光を置く。 */
+  /** 全アプリ共通の背景。墨の無地と、メニューバーの帯（styles.css の .wallpaper）。 */
   function wallpaper() {
-    return h("div", { class: "wallpaper" }, h("div", { class: "glow" }));
+    return h("div", { class: "wallpaper" });
   }
 
   // ─── 文字組み ────────────────────────────────────────────
@@ -422,6 +424,12 @@
     });
   }
 
-  // 画像とフォントの読み込みは、render.sh が Chrome に渡す --virtual-time-budget で待つ。
-  ({ side: layoutSide, compare: layoutCompare, grid: layoutGrid })[shot.layout]();
+  if (params.get("mode") === "video") {
+    // デモ動画の版下（../demo/video.html）には、配置をせず部品だけを渡す。
+    // ポップオーバーをここと別に組むと、アプリの画面を変えたときに片方だけ古くなる。
+    window.AM = { popover, sym, h, t };
+  } else {
+    // 画像とフォントの読み込みは、render.sh が Chrome に渡す --virtual-time-budget で待つ。
+    ({ side: layoutSide, compare: layoutCompare, grid: layoutGrid })[shot.layout]();
+  }
 })();

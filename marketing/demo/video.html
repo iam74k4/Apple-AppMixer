@@ -1,0 +1,55 @@
+<!doctype html>
+<!--
+  AppMixer のデモ動画の版下（1440×900）。render.sh が 1 コマずつ PNG に撮り、MP4 にする。
+  全アプリ共通の背景（墨の無地と、描いたメニューバー。build/backdrop-*@2x.png）の上に、
+  スクリーンショットと同じ部品（../screenshots/app.js の popover）で組んだポップオーバーを置き、
+  video.js が台本どおりに動かす。?mode=video&lang=ja を付けて開く（app.js が配置をせず、
+  部品だけを渡す）。
+  ブラウザで直接開いて確認してもよい（先に render.sh を一度動かして、部品と背景を作っておくこと）。
+  コンソールで renderAt(秒) を呼ぶと、その時刻のコマになる。
+-->
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>AppMixer demo</title>
+<!-- app.js はアイコンを、ページからの相対（build/assets/icons/…）で読む。ページの基準を
+     スクリーンショットの版下に移して、部品を 1 か所（../screenshots/build）から読む。
+     このフォルダのもの（背景と video.js）は ../demo/… と書く。 -->
+<base href="../screenshots/">
+<link rel="stylesheet" href="styles.css">
+<!-- 開いた状態の背景は、ポップオーバーを開くコマで初めて要る。読み込みは撮るのを
+     待たないので、そのコマで読み始めると、メニューバーの無いコマが 1 枚混じるおそれがある。
+     先に読んでおく（背景の PNG が無いときも、最初のコマを撮る前に分かる）。 -->
+<link rel="preload" as="image" href="../demo/build/backdrop-open@2x.png">
+<style>
+  html, body { background: #222226; }
+  /* 背景は 2 倍（2880×1800）の絵を、1440×900 に縮めて敷く（理由は render.sh）。 */
+  #canvas { background: url(../demo/build/backdrop-idle@2x.png) 0 0 / 1440px 900px no-repeat; }
+  #canvas[data-open="1"] { background-image: url(../demo/build/backdrop-open@2x.png); }
+  .stage, .pointer, .ripple { position: absolute; left: 0; top: 0; }
+  .popwrap { position: absolute; transform-origin: 50% 0; }
+  .pointer { z-index: 30; filter: drop-shadow(0 1.5px 2px rgba(0, 0, 0, 0.45)); }
+  .ripple { z-index: 29; border-radius: 50%; border: 2.5px solid #fff; box-sizing: border-box; }
+  /* 右下のトラックパッドの図。位置と大きさは全アプリ共通（画面の 380×253pt・右から 44pt・下から 40pt が、
+     1440×900 に写ったときの寸法）。指は白い丸に緑の縁で、押している間は緑で塗る。 */
+  .pad {
+    position: absolute; right: 37px; bottom: 34px; width: 320px; height: 213px; z-index: 20;
+    border-radius: 22px; background: rgba(255, 255, 255, 0.07); border: 1.3px solid rgba(255, 255, 255, 0.22); box-sizing: border-box;
+    overflow: hidden;
+  }
+  .pad-finger, .pad-trail, .pad-ring { position: absolute; left: 0; top: 0; border-radius: 50%; box-sizing: border-box; }
+  .pad-finger { width: 25px; height: 25px; background: #fff; border: 3.4px solid #30d158; box-shadow: 0 0 8px rgba(48, 209, 88, 0.6); }
+  .pad-finger[data-pressed="1"] { background: #30d158; }
+  .pad-trail { background: #fff; }
+  .pad-ring { border: 2px solid #30d158; }
+</style>
+<script src="build/assets/symbols/manifest.js"></script>
+<script src="build/meta.js"></script>
+<script src="shots.js"></script>
+<script src="app.js" defer></script>
+<script src="../demo/video.js" defer></script>
+</head>
+<body>
+<div id="canvas"></div>
+</body>
+</html>

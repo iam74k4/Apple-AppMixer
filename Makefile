@@ -11,6 +11,9 @@
 #   App Store の素材
 #     make screenshots            スクリーンショットを marketing/screenshots/build/ に書き出す
 #
+#   紹介用の素材（AstLog）
+#     make demo-video             デモ動画を marketing/demo/build/ に書き出す
+#
 #   リリース（Mac App Store）
 #     make clean                  前回の残りを消してから作り直す
 #     make run-sandboxed          サンドボックスを有効にして起動（動作確認用）
@@ -60,7 +63,7 @@ BUNDLE_ID := $(shell /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" bund
 # 提出時だけ使う、組み立て済みのエンタイトルメント。
 MAS_ENTITLEMENTS := $(DIST)/mas/entitlements.plist
 
-.PHONY: all build test bundle icon sign run clean check-version run-sandboxed mas check-mas screenshots
+.PHONY: all build test bundle icon sign run clean check-version run-sandboxed mas check-mas screenshots demo-video
 
 # 署名やアーカイブは同じ .app を触るため、並列に走らせると壊れる。
 .NOTPARALLEL:
@@ -196,6 +199,11 @@ mas: check-mas bundle
 # App Store 用のスクリーンショット（日本語・英語）。詳しくは marketing/screenshots/README.md。
 screenshots:
 	@marketing/screenshots/render.sh
+
+# AstLog に載せるデモ動画（アプリの実物の収録ではなく、スクリーンショットと同じ部品で
+# 組んだ画面を台本どおりに動かしたもの）。詳しくは marketing/demo/README.md。
+demo-video:
+	@marketing/demo/render.sh
 
 clean:
 	@rm -rf .build "$(DIST)" bundle/icon/AppIcon.icns
