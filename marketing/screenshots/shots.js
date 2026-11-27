@@ -15,7 +15,7 @@
 // 返す名前なので、その言語の Mac で実際に出る名前にする（英語の Mac では
 // 「ミュージック」ではなく「Music」）。AppMixer 自身の文言は app.js の UI。
 //
-// 背景は全アプリ共通の真っ黒の無地（README の「背景」）。ポップオーバーと文言だけで伝える。
+// 背景は全アプリ共通の墨の無地（README の「背景」）。ポップオーバーと文言だけで伝える。
 
 const APP = {
   chrome: { name: "Google Chrome", icon: "chrome" },

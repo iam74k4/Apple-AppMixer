@@ -24,13 +24,13 @@ fi
 # 1. 部品（SF Symbols・アプリのアイコン・版）。スクリーンショットと同じものを、同じ場所に作る。
 ../screenshots/assets.sh
 
-# 2. 背景。全アプリ共通の絵（真っ黒の無地と、描いたメニューバー）に、AppMixer のアイコンを置く。
+# 2. 背景。全アプリ共通の絵（墨の無地と、描いたメニューバー）に、AppMixer のアイコンを置く。
 #    閉じた状態と、ポップオーバーを開いた状態（アイコンの後ろに選択中の角丸）の 2 枚。
 #    2 倍（2880×1800）で描き、版下が 1440×900 に縮めて敷く（video.html の background-size）。
 #    1 倍で直に描くと、メニューバーのアイコン（14pt の slider.vertical.3）の細い線がつぶれて、
 #    にじんだ塊に見える。
 #    縮めるのに sips を使わない。sips は PNG の sRGB の印を gAMA（ガンマ 2.2）に書き換え、
-#    Chrome がそのぶん色を変換して、暗い色がずれて写る（墨の地 #222226 だったころは #1C1C21 に沈んだ）。
+#    Chrome がそのぶん色を変換して、地が #222226 より暗く（#1C1C21 に）写る。
 mkdir -p build
 swift "$ROOT/scripts/make-backdrop.swift" build/backdrop-idle@2x.png 2880 1800 --status-symbol slider.vertical.3
 swift "$ROOT/scripts/make-backdrop.swift" build/backdrop-open@2x.png 2880 1800 --status-symbol slider.vertical.3 --status-selected

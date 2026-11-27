@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   AppMixer のデモ動画の版下（1440×900）。render.sh が 1 コマずつ PNG に撮り、MP4 にする。
-  全アプリ共通の背景（真っ黒の無地と、描いたメニューバー。build/backdrop-*@2x.png）の上に、
+  全アプリ共通の背景（墨の無地と、描いたメニューバー。build/backdrop-*@2x.png）の上に、
   スクリーンショットと同じ部品（../screenshots/app.js の popover）で組んだポップオーバーを置き、
   video.js が台本どおりに動かす。?mode=video&lang=ja を付けて開く（app.js が配置をせず、
   部品だけを渡す）。
@@ -22,7 +22,7 @@
      先に読んでおく（背景の PNG が無いときも、最初のコマを撮る前に分かる）。 -->
 <link rel="preload" as="image" href="../demo/build/backdrop-open@2x.png">
 <style>
-  html, body { background: #000000; }
+  html, body { background: #222226; }
   /* 背景は 2 倍（2880×1800）の絵を、1440×900 に縮めて敷く（理由は render.sh）。 */
   #canvas { background: url(../demo/build/backdrop-idle@2x.png) 0 0 / 1440px 900px no-repeat; }
   #canvas[data-open="1"] { background-image: url(../demo/build/backdrop-open@2x.png); }
